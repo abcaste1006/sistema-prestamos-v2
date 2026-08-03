@@ -2,7 +2,6 @@ from django.db import models
 from core.models import BaseModel
 import uuid
 
-
 class EquipmentModel(BaseModel):
     """Modelo ORM para equipos."""
     
@@ -23,6 +22,7 @@ class EquipmentModel(BaseModel):
     serial_number = models.CharField(max_length=100, blank=True, null=True)
     specifications = models.TextField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
+    is_active = models.BooleanField(default=True)  # ← AGREGAR ESTA LÍNEA
 
     class Meta:
         db_table = 'inventory_equipments'

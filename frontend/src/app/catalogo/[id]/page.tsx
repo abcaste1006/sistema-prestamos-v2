@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api/client";
+import AddToCartButton from "@/app/components/AddToCartButton";
 
 interface Equipment {
   id: string;
@@ -74,12 +75,12 @@ export default function EquipmentDetailPage({
         <p className="text-gray-700 mb-6">{equipment.description}</p>
 
         <div className="flex gap-4">
-          <Link
-            href={`/solicitar?equipment=${equipment.id}`}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Solicitar Préstamo
-          </Link>
+          {/* Reemplazar el enlace viejo con el botón nuevo */}
+          <AddToCartButton
+            equipmentId={equipment.id}
+            name={equipment.name}
+            category={equipment.category}
+          />
           <Link
             href="/catalogo"
             className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"

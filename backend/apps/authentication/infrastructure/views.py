@@ -125,8 +125,14 @@ class LoginView(APIView):
                 'detail': 'Usuario no verificado. Se ha enviado un nuevo código.'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # --- GENERAR JWT REAL ---
-        refresh = RefreshToken.for_user(user)
+        # --- GENERAR JWT REAL CON CLAIMS PERSONALIZADOS ---
+        refresh = RefreshToken.for_user(user)  # ← Esta línea es obligatorias
+
+        # Agregar claims personalizados (esto funciona para TODOS los usuarios)
+        refresh['is_admin'] = user.is_admin  # True o False según el usuario
+        refresh['user_id'] = str(user.id)
+        refresh['email'] = user.email
+
         access_token = str(refresh.access_token)
         # --- FIN ---
         

@@ -15,10 +15,24 @@ api.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+
+    // Extraer is_admin del token y actualizar localStorage
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.is_admin = payload.is_admin || false;
+        user.user_id = payload.user_id || user.id;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } catch (e) {
+      // Ignorar errores de parseo (token inválido o no es JWT)
+    }
   }
 
-  if (!config.headers.Authorization && typeof window !== 'undefined') {
-    const cachedUser = localStorage.getItem('user');
+  if (!config.headers.Authorization && typeof window !== "undefined") {
+    const cachedUser = localStorage.getItem("user");
     if (cachedUser) {
       try {
         const parsed = JSON.parse(cachedUser);
