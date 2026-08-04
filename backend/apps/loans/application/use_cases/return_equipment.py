@@ -7,6 +7,8 @@ from apps.loans.domain.entities import Loan, LoanStatus
 from apps.loans.domain.exceptions import LoanNotFoundError, InvalidLoanStatusError
 from apps.loans.interfaces.repositories import LoanRepositoryInterface
 from apps.inventory.interfaces.repositories import EquipmentRepositoryInterface
+from apps.loans.infrastructure.models import LoanItemModel
+from django.utils import timezone
 
 
 class ReturnEquipmentUseCase:
@@ -27,19 +29,8 @@ class ReturnEquipmentUseCase:
         condition_notes: Optional[str] = None,
     ) -> Loan:
         """
-        Marca un equipo específico como devuelto.
-
-        Args:
-            loan_id: ID del préstamo
-            equipment_id: ID del equipo a devolver
-            condition_notes: Notas sobre el estado del equipo (opcional)
-
-        Returns:
-            Loan: El préstamo actualizado
-
-        Raises:
-            LoanNotFoundError: Si el préstamo no existe
-            InvalidLoanStatusError: Si el préstamo no está activo
+        Marca un equipo específico como devuelto y lo libera.
+        Cambia LoanItem de LOANED a RETURNED y equipo a AVAILABLE.
         """
         loan = self.loan_repository.get_by_id(loan_id)
         if not loan:
@@ -50,25 +41,41 @@ class ReturnEquipmentUseCase:
                 f"No se puede devolver equipos de un préstamo en estado '{loan.status}'"
             )
 
-        # Buscar el item del equipo
-        item = next((i for i in loan.items if i.equipment_id == equipment_id), None)
-        if not item:
+        # Obtener el LoanItem
+        try:
+            loan_item = LoanItemModel.objects.get(
+                loan_id=loan_id,
+                equipment_id=equipment_id
+            )
+        except LoanItemModel.DoesNotExist:
             raise ValueError(f"Equipo con ID '{equipment_id}' no encontrado en el préstamo")
 
-        if item.is_returned:
-            raise ValueError(f"El equipo '{item.equipment_name}' ya fue devuelto")
+        if loan_item.is_returned:
+            raise ValueError(f"El equipo ya fue devuelto")
 
         # Marcar como devuelto
-        item.mark_as_returned(condition_notes)
+        loan_item.is_returned = True
+        loan_item.returned_at = timezone.now()
+        loan_item.condition_notes = condition_notes
+        loan_item.status = 'RETURNED'
+        loan_item.save()
 
-        # Actualizar estado del equipo
+        # Liberar el equipo (cambiarlo a AVAILABLE)
         equipment = self.equipment_repository.get_by_id(equipment_id)
         if equipment:
             equipment.mark_as_available()
             self.equipment_repository.save(equipment)
 
-        # Si todos los equipos están devueltos, marcar el préstamo como RETURNED
-        if loan.all_items_returned:
-            loan.mark_as_returned()
+        # Verificar si todos los items están devueltos
+        all_returned = LoanItemModel.objects.filter(
+            loan_id=loan_id,
+            is_returned=False
+        ).count() == 0
 
-        return self.loan_repository.save(loan)
+        if all_returned:
+            # Obtener el préstamo actualizado y marcar como RETURNED
+            loan = self.loan_repository.get_by_id(loan_id)
+            loan.mark_as_returned()
+            return self.loan_repository.save(loan)
+
+        return loan

@@ -76,6 +76,12 @@ export default function AdminLayout({
             🔄 Devoluciones
           </Link>
           <Link
+            href="/admin/disponibilidad"
+            className="block px-4 py-2 rounded-lg hover:bg-gray-700"
+          >
+            📅 Disponibilidad
+          </Link>
+          <Link
             href="/admin/equipos"
             className="block px-4 py-2 rounded-lg hover:bg-gray-700"
           >

@@ -1,7 +1,8 @@
 from django.urls import path
-from .infrastructure.views import EquipmentListView, EquipmentDetailView
+from .infrastructure.views import EquipmentListView, EquipmentDetailView, EquipmentAvailabilityView
 
 urlpatterns = [
     path('equipment/', EquipmentListView.as_view(), name='equipment-list'),
     path('equipment/<uuid:pk>/', EquipmentDetailView.as_view(), name='equipment-detail'),
+    path('equipment/availability/', EquipmentAvailabilityView.as_view(), name='equipment-availability'),
 ]

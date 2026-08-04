@@ -5,6 +5,8 @@ Caso de uso: Despachar equipos de un préstamo aprobado (admin).
 from apps.loans.domain.entities import Loan, LoanStatus
 from apps.loans.domain.exceptions import LoanNotFoundError, InvalidLoanStatusError
 from apps.loans.interfaces.repositories import LoanRepositoryInterface
+from apps.loans.infrastructure.models import LoanItemModel
+from django.utils import timezone
 
 
 class DispatchEquipmentUseCase:
@@ -15,17 +17,8 @@ class DispatchEquipmentUseCase:
 
     def execute(self, loan_id: str) -> Loan:
         """
-        Marca un préstamo como despachado (equipos entregados).
-
-        Args:
-            loan_id: ID del préstamo a despachar
-
-        Returns:
-            Loan: El préstamo despachado
-
-        Raises:
-            LoanNotFoundError: Si el préstamo no existe
-            InvalidLoanStatusError: Si el préstamo no está aprobado
+        Marca un préstamo como despachado (equipos entregados físicamente).
+        Esto confirma que los equipos salieron de bodega.
         """
         loan = self.repository.get_by_id(loan_id)
         if not loan:
@@ -36,5 +29,13 @@ class DispatchEquipmentUseCase:
                 f"No se puede despachar un préstamo en estado '{loan.status}'"
             )
 
+        # Dispatch cambia el estado a ACTIVE
         loan.dispatch()
-        return self.repository.save(loan)
+        saved_loan = self.repository.save(loan)
+
+        # Actualizar LoanItems a LOANED (ya deberían estar, pero aseguramos)
+        LoanItemModel.objects.filter(loan_id=loan_id, status='RESERVED').update(
+            status='LOANED'
+        )
+
+        return saved_loan

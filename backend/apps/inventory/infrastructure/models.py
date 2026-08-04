@@ -22,7 +22,7 @@ class EquipmentModel(BaseModel):
     serial_number = models.CharField(max_length=100, blank=True, null=True)
     specifications = models.TextField(blank=True, null=True)
     image_url = models.URLField(blank=True, null=True)
-    is_active = models.BooleanField(default=True)  # ← AGREGAR ESTA LÍNEA
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'inventory_equipments'
@@ -30,3 +30,23 @@ class EquipmentModel(BaseModel):
 
     def __str__(self):
         return f"{self.name} ({self.category})"
+    
+    def create_default_schedules(self):
+        """
+        Crea horarios por defecto (24/7) para el equipo.
+        """
+        from apps.loans.infrastructure.models import EquipmentSchedule
+        
+        # Verificar si ya tiene horarios
+        if EquipmentSchedule.objects.filter(equipment=self).exists():
+            return
+        
+        # Horarios por defecto: Lunes a Domingo, 00:00 - 23:59 (24/7)
+        for day in range(7):  # 0=Lunes, 6=Domingo
+            EquipmentSchedule.objects.create(
+                equipment=self,
+                day_of_week=day,
+                start_time='00:00',
+                end_time='23:59',
+                is_active=True
+            )

@@ -1,16 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import api from "@/lib/api/client";
 
+interface AvailabilityResult {
+  equipmentId: string;
+  available: boolean;
+  reason?: string;
+}
+
 export default function SolicitarPage() {
   const router = useRouter();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, removeItem } = useCartStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availabilityResults, setAvailabilityResults] = useState<
+    AvailabilityResult[]
+  >([]);
+  const [availabilityChecked, setAvailabilityChecked] = useState(false);
 
   const [form, setForm] = useState({
     pickup_date: "",
@@ -21,22 +32,93 @@ export default function SolicitarPage() {
     notes: "",
   });
 
+  // Verificar disponibilidad automáticamente cuando cambian las fechas o el carrito
+  useEffect(() => {
+    if (form.pickup_date && form.return_date && items.length > 0) {
+      checkAvailability();
+    }
+  }, [
+    form.pickup_date,
+    form.return_date,
+    form.pickup_time,
+    form.return_time,
+    items,
+  ]);
+
+  const checkAvailability = async () => {
+    if (!form.pickup_date || !form.return_date) return;
+    if (items.length === 0) return;
+
+    setCheckingAvailability(true);
+    setAvailabilityChecked(false);
+    setAvailabilityResults([]);
+
+    try {
+      const results: AvailabilityResult[] = [];
+
+      for (const item of items) {
+        const params = new URLSearchParams({
+          equipment_id: item.equipmentId,
+          start_date: form.pickup_date,
+          end_date: form.return_date,
+        });
+
+        if (form.pickup_time) {
+          params.append("pickup_time", form.pickup_time);
+        }
+        if (form.return_time) {
+          params.append("return_time", form.return_time);
+        }
+
+        const res = await api.get(
+          `/equipment/availability/?${params.toString()}`,
+        );
+
+        results.push({
+          equipmentId: item.equipmentId,
+          available: res.data.availability?.available ?? false,
+          reason: res.data.availability?.reason,
+        });
+      }
+
+      setAvailabilityResults(results);
+      setAvailabilityChecked(true);
+    } catch (err) {
+      console.error("Error al verificar disponibilidad:", err);
+      setError("Error al verificar disponibilidad de los equipos");
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  const allAvailable = availabilityResults.every((r) => r.available);
+  const hasUnavailable = availabilityResults.some((r) => !r.available);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     if (items.length === 0) {
       setError("No hay equipos en el carrito");
-      setLoading(false);
       return;
     }
 
     if (!form.terms_accepted) {
       setError("Debes aceptar los términos y condiciones");
-      setLoading(false);
       return;
     }
+
+    // Verificar disponibilidad nuevamente antes de enviar
+    await checkAvailability();
+
+    if (!allAvailable) {
+      setError(
+        "Algunos equipos no están disponibles para las fechas seleccionadas",
+      );
+      return;
+    }
+
+    setLoading(true);
 
     const payload = {
       equipment_ids: items.map((i) => i.equipmentId),
@@ -69,6 +151,12 @@ export default function SolicitarPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRemoveItem = (equipmentId: string) => {
+    removeItem(equipmentId);
+    setAvailabilityChecked(false);
+    setAvailabilityResults([]);
   };
 
   if (success) {
@@ -106,26 +194,78 @@ export default function SolicitarPage() {
         <div className="md:col-span-2">
           <div className="bg-white p-4 rounded-lg shadow mb-4">
             <h2 className="font-semibold text-lg mb-3">
-              Equipos seleccionados
+              Equipos seleccionados ({items.length})
             </h2>
             {items.length === 0 ? (
               <p className="text-gray-500">No hay equipos en el carrito</p>
             ) : (
               <ul className="space-y-2">
-                {items.map((item) => (
-                  <li
-                    key={item.equipmentId}
-                    className="flex justify-between items-center border-b pb-2"
-                  >
-                    <div>
-                      <span className="font-medium">{item.name}</span>
-                      <span className="text-sm text-gray-500 ml-2">
-                        {item.category}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {items.map((item) => {
+                  const availability = availabilityResults.find(
+                    (r) => r.equipmentId === item.equipmentId,
+                  );
+                  const isAvailable = availability?.available ?? true;
+                  const isChecking = checkingAvailability;
+
+                  return (
+                    <li
+                      key={item.equipmentId}
+                      className="flex justify-between items-center border-b pb-2"
+                    >
+                      <div>
+                        <span className="font-medium">{item.name}</span>
+                        <span className="text-sm text-gray-500 ml-2">
+                          {item.category}
+                        </span>
+                        {availabilityChecked && (
+                          <span
+                            className={`ml-2 text-xs px-2 py-1 rounded ${
+                              isAvailable
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {isAvailable ? "✓ Disponible" : "✗ No disponible"}
+                          </span>
+                        )}
+                        {availabilityChecked &&
+                          !isAvailable &&
+                          availability?.reason && (
+                            <div className="text-xs text-red-600 mt-1">
+                              {availability.reason}
+                            </div>
+                          )}
+                      </div>
+                      <button
+                        onClick={() => handleRemoveItem(item.equipmentId)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Eliminar
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
+            )}
+
+            {/* Indicador de disponibilidad general */}
+            {availabilityChecked && items.length > 0 && (
+              <div
+                className={`mt-3 p-2 rounded text-sm ${
+                  allAvailable
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {allAvailable
+                  ? "✅ Todos los equipos están disponibles para las fechas seleccionadas"
+                  : "❌ Algunos equipos no están disponibles para las fechas seleccionadas"}
+              </div>
+            )}
+            {checkingAvailability && (
+              <div className="mt-3 text-sm text-blue-600">
+                ⏳ Verificando disponibilidad...
+              </div>
             )}
           </div>
 
@@ -142,9 +282,10 @@ export default function SolicitarPage() {
                 <input
                   type="date"
                   value={form.pickup_date}
-                  onChange={(e) =>
-                    setForm({ ...form, pickup_date: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, pickup_date: e.target.value });
+                    setAvailabilityChecked(false);
+                  }}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   min={new Date().toISOString().split("T")[0]}
@@ -157,9 +298,10 @@ export default function SolicitarPage() {
                 <input
                   type="date"
                   value={form.return_date}
-                  onChange={(e) =>
-                    setForm({ ...form, return_date: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, return_date: e.target.value });
+                    setAvailabilityChecked(false);
+                  }}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                   min={
@@ -177,9 +319,10 @@ export default function SolicitarPage() {
                 <input
                   type="time"
                   value={form.pickup_time}
-                  onChange={(e) =>
-                    setForm({ ...form, pickup_time: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, pickup_time: e.target.value });
+                    setAvailabilityChecked(false);
+                  }}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -191,9 +334,10 @@ export default function SolicitarPage() {
                 <input
                   type="time"
                   value={form.return_time}
-                  onChange={(e) =>
-                    setForm({ ...form, return_time: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, return_time: e.target.value });
+                    setAvailabilityChecked(false);
+                  }}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -239,10 +383,21 @@ export default function SolicitarPage() {
 
             <button
               type="submit"
-              disabled={loading || items.length === 0}
+              disabled={
+                loading ||
+                items.length === 0 ||
+                (availabilityChecked && !allAvailable) ||
+                checkingAvailability
+              }
               className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {loading ? "Enviando..." : "Enviar Solicitud"}
+              {loading
+                ? "Enviando..."
+                : checkingAvailability
+                  ? "Verificando disponibilidad..."
+                  : availabilityChecked && !allAvailable
+                    ? "Equipos no disponibles"
+                    : "Enviar Solicitud"}
             </button>
           </form>
         </div>
@@ -263,6 +418,16 @@ export default function SolicitarPage() {
               <span className="text-gray-600">Fecha devolución:</span>
               <span className="font-medium">{form.return_date || "—"}</span>
             </div>
+            {availabilityChecked && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Disponibilidad:</span>
+                <span
+                  className={`font-medium ${allAvailable ? "text-green-600" : "text-red-600"}`}
+                >
+                  {allAvailable ? "✓ Disponible" : "✗ No disponible"}
+                </span>
+              </div>
+            )}
             <hr className="my-2" />
             <p className="text-xs text-gray-500">
               Recuerda que los equipos deben ser devueltos en las mismas

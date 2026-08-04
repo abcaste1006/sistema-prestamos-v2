@@ -116,6 +116,7 @@ class LoanDetailView(APIView):
             }, status=status.HTTP_404_NOT_FOUND)
 
 
+# En ApproveLoanView, actualizar la creación del caso de uso:
 class ApproveLoanView(APIView):
     """Endpoint para aprobar una solicitud de préstamo (admin)."""
     
@@ -128,7 +129,8 @@ class ApproveLoanView(APIView):
                 'detail': 'No tienes permiso para realizar esta acción'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        use_case = ApproveLoanUseCase(loan_repository)
+        # Inicializar con ambos repositorios
+        use_case = ApproveLoanUseCase(loan_repository, equipment_repository)
         
         try:
             loan = use_case.execute(loan_id)
@@ -141,7 +143,6 @@ class ApproveLoanView(APIView):
             return Response({
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
-
 
 class RejectLoanView(APIView):
     """Endpoint para rechazar una solicitud de préstamo (admin)."""
@@ -159,12 +160,13 @@ class RejectLoanView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        use_case = RejectLoanUseCase(loan_repository)
+        # Inicializar con ambos repositorios
+        use_case = RejectLoanUseCase(loan_repository, equipment_repository)
         
         try:
             loan = use_case.execute(loan_id, serializer.validated_data['reason'])
             return Response({
-                'message': 'Préstamo rechazado',
+                'message': 'Préstamo rechazado y equipos liberados',
                 'loan_id': loan.id,
                 'status': loan.status.value,
             }, status=status.HTTP_200_OK)

@@ -4,6 +4,7 @@ Serializers para el módulo de préstamos.
 
 from rest_framework import serializers
 from django.utils import timezone
+from datetime import datetime
 from .models import LoanModel, LoanItemModel
 from apps.inventory.infrastructure.models import EquipmentModel
 
@@ -18,7 +19,7 @@ class LoanItemSerializer(serializers.ModelSerializer):
         model = LoanItemModel
         fields = [
             'id', 'loan', 'equipment', 'equipment_id', 'equipment_name',
-            'is_returned', 'returned_at', 'condition_notes'
+            'status', 'is_returned', 'returned_at', 'condition_notes'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -57,21 +58,49 @@ class CreateLoanSerializer(serializers.Serializer):
     terms_accepted = serializers.BooleanField(default=False)
     
     def validate(self, data):
-        """Validaciones cruzadas."""
+        """Validaciones cruzadas corregidas para permitir mismo día."""
         pickup_date = data.get('pickup_date')
         return_date = data.get('return_date')
+        pickup_time = data.get('pickup_time')
+        return_time = data.get('return_time')
         
         # Validar que la fecha de retiro no sea en el pasado
-        if pickup_date and pickup_date < timezone.now().date():
+        today = timezone.now().date()
+        if pickup_date and pickup_date < today:
             raise serializers.ValidationError({
                 'pickup_date': 'La fecha de retiro no puede ser en el pasado'
             })
         
-        # Validar que la fecha de devolución sea posterior al retiro
-        if pickup_date and return_date and return_date <= pickup_date:
-            raise serializers.ValidationError({
-                'return_date': 'La fecha de devolución debe ser posterior a la fecha de retiro'
-            })
+        # Validar fechas y horas combinadas
+        if pickup_date and return_date:
+            # Caso 1: Fecha de devolución anterior a fecha de retiro -> ERROR
+            if return_date < pickup_date:
+                raise serializers.ValidationError({
+                    'return_date': 'La fecha de devolución no puede ser anterior a la fecha de retiro'
+                })
+            
+            # Caso 2: Misma fecha -> validar horas
+            if return_date == pickup_date:
+                if not pickup_time or not return_time:
+                    raise serializers.ValidationError({
+                        'pickup_time': 'Se requiere hora de retiro para reservas del mismo día',
+                        'return_time': 'Se requiere hora de devolución para reservas del mismo día'
+                    })
+                
+                try:
+                    pickup_time_obj = datetime.strptime(pickup_time, "%H:%M").time()
+                    return_time_obj = datetime.strptime(return_time, "%H:%M").time()
+                    
+                    if return_time_obj <= pickup_time_obj:
+                        raise serializers.ValidationError({
+                            'return_time': 'La hora de devolución debe ser posterior a la hora de retiro'
+                        })
+                except ValueError:
+                    raise serializers.ValidationError({
+                        'pickup_time': 'Formato de hora inválido. Use HH:MM (ej: 14:30)'
+                    })
+            
+            # Caso 3: Fecha de devolución posterior -> válido siempre
         
         # Validar términos
         if not data.get('terms_accepted', False):
@@ -80,7 +109,6 @@ class CreateLoanSerializer(serializers.Serializer):
             })
         
         return data
-
 
 class LoanSerializer(serializers.ModelSerializer):
     """Serializer para listar préstamos."""
@@ -141,8 +169,7 @@ class LoanDetailSerializer(serializers.ModelSerializer):
 
 class ApproveLoanSerializer(serializers.Serializer):
     """Serializer para aprobar un préstamo."""
-    
-    # No se requieren campos adicionales para aprobar
+    pass
 
 
 class RejectLoanSerializer(serializers.Serializer):
