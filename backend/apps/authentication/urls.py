@@ -8,6 +8,7 @@ from .infrastructure.views import (
     LoginView,
     VerifyView,
     ResendCodeView,
+    RefreshView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='auth-login'),
     path('auth/verify/', VerifyView.as_view(), name='auth-verify'),
     path('auth/resend-code/', ResendCodeView.as_view(), name='auth-resend'),
+    path('auth/refresh/', RefreshView.as_view(), name='auth-refresh'),
 ]

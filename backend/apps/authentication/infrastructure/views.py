@@ -19,6 +19,9 @@ from .serializers import (
     VerifySerializer,
     UserResponseSerializer,
 )
+from django.conf import settings
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class RegisterView(APIView):
@@ -134,16 +137,37 @@ class LoginView(APIView):
         refresh['email'] = user.email
 
         access_token = str(refresh.access_token)
-        # --- FIN ---
-        
+
         user_data = UserResponseSerializer(user).data
-        
-        return Response({
+
+        response = Response({
             'access_token': access_token,
             'refresh_token': str(refresh),
             'token_type': 'bearer',
             'user': user_data,
         }, status=status.HTTP_200_OK)
+
+        # Setear refresh token como cookie HttpOnly (más seguro)
+        secure = not settings.DEBUG
+        refresh_lifetime = settings.SIMPLE_JWT.get('REFRESH_TOKEN_LIFETIME')
+        max_age = None
+        try:
+            # timedelta -> seconds
+            max_age = int(refresh_lifetime.total_seconds())
+        except Exception:
+            max_age = None
+
+        response.set_cookie(
+            'refresh_token',
+            str(refresh),
+            httponly=True,
+            secure=secure,
+            samesite='Lax',
+            path='/',
+            max_age=max_age,
+        )
+
+        return response
 
 
 class ResendCodeView(APIView):
@@ -187,3 +211,22 @@ class ResendCodeView(APIView):
         return Response({
             'message': 'Código reenviado exitosamente'
         }, status=status.HTTP_200_OK)
+
+
+class RefreshView(APIView):
+    """Endpoint para refrescar access token usando refresh token en cookie HttpOnly."""
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        token = request.COOKIES.get('refresh_token')
+        if not token:
+            return Response({'detail': 'No refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            refresh = RefreshToken(token)
+            access_token = str(refresh.access_token)
+        except TokenError:
+            return Response({'detail': 'Refresh token inválido o expirado'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return Response({'access_token': access_token}, status=status.HTTP_200_OK)
