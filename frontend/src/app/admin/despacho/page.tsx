@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api/client";
+import { formatDate, formatDateTime } from "@/lib/utils/formatDate";
 
 interface LoanItem {
   id: string;
@@ -120,28 +121,6 @@ export default function AdminDespachoPage() {
 
   const getStatusLabel = (status: string) => {
     return statusLabels[status] || status;
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (loading) {

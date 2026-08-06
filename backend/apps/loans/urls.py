@@ -7,6 +7,7 @@ from .infrastructure.views import (
     RejectLoanView,
     DispatchView,
     ReturnView,
+    ReceiveView,  # <-- DEBE ESTAR IMPORTADO
     ListPendingLoansView,
     ListApprovedLoansView,
     ListDispatchedLoansView,
@@ -26,5 +27,6 @@ urlpatterns = [
     path('admin/loans/<uuid:loan_id>/approve/', ApproveLoanView.as_view(), name='loan-approve'),
     path('admin/loans/<uuid:loan_id>/reject/', RejectLoanView.as_view(), name='loan-reject'),
     path('admin/loans/<uuid:loan_id>/dispatch/', DispatchView.as_view(), name='loan-dispatch'),
+    path('admin/loans/<uuid:loan_id>/receive/', ReceiveView.as_view(), name='loan-receive'),  # <-- DEBE EXISTIR
     path('admin/loans/<uuid:loan_id>/return/', ReturnView.as_view(), name='loan-return'),
 ]

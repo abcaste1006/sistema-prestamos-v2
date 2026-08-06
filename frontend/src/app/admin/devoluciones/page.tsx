@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api/client";
+import { formatDate, formatDateTime } from "@/lib/utils/formatDate";
 
 interface LoanItem {
   id: string;
@@ -40,8 +41,8 @@ const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800 border-yellow-300",
   APPROVED: "bg-blue-100 text-blue-800 border-blue-300",
   REJECTED: "bg-red-100 text-red-800 border-red-300",
-  DISPATCHED: "bg-purple-100 text-purple-800 border-purple-300",
   ACTIVE: "bg-green-100 text-green-800 border-green-300",
+  OVERDUE: "bg-orange-100 text-orange-800 border-orange-300",
   RETURNED: "bg-gray-100 text-gray-800 border-gray-300",
   CLOSED: "bg-gray-200 text-gray-600 border-gray-400",
 };
@@ -50,8 +51,8 @@ const statusLabels: Record<string, string> = {
   PENDING: "Pendiente",
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
-  DISPATCHED: "Despachado",
   ACTIVE: "Activo",
+  OVERDUE: "Vencido",
   RETURNED: "Devuelto",
   CLOSED: "Cerrado",
 };
@@ -66,6 +67,7 @@ export default function AdminDevolucionesPage() {
   const [returningEquipmentId, setReturningEquipmentId] = useState<
     string | null
   >(null);
+  const [returnStatus, setReturnStatus] = useState<string>("OK");
   const [returnNotes, setReturnNotes] = useState("");
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function AdminDevolucionesPage() {
       setLoading(true);
       setError("");
       const res = await api.get("/admin/loans/dispatched/");
+      console.log("📦 Datos recibidos:", res.data); // <-- Debug
       setLoans(res.data);
     } catch (err: any) {
       console.error("Error:", err);
@@ -90,42 +93,61 @@ export default function AdminDevolucionesPage() {
     }
   };
 
-  const handleReturn = async (loanId: string, equipmentId: string) => {
-    if (!confirm(`¿Estás seguro de marcar este equipo como devuelto?`)) return;
+  const handleReceive = async (loanId: string, equipmentId: string) => {
+    if (
+      !confirm(
+        `¿Estás seguro de recepcionar este equipo como "${returnStatus}"?`,
+      )
+    )
+      return;
 
     setProcessingId(loanId);
     setReturningEquipmentId(equipmentId);
     try {
-      await api.post(`/admin/loans/${loanId}/return/`, {
-        equipment_ids: [equipmentId],
-        condition_notes: returnNotes || undefined,
+      await api.post(`/admin/loans/${loanId}/receive/`, {
+        equipment_id: equipmentId,
+        return_status: returnStatus,
+        return_notes: returnNotes || undefined,
       });
       await fetchLoans();
       setReturnNotes("");
-      alert("✅ Equipo marcado como devuelto");
+      setReturnStatus("OK");
+      alert("✅ Equipo recepcionado exitosamente");
     } catch (err: any) {
       console.error("Error:", err);
-      alert("Error al marcar el equipo como devuelto");
+      alert("Error al recepcionar el equipo");
     } finally {
       setProcessingId(null);
       setReturningEquipmentId(null);
     }
   };
 
-  const handleReturnAll = async (loanId: string) => {
-    if (!confirm("¿Estás seguro de marcar TODOS los equipos como devueltos?"))
+  const handleReceiveAll = async (loanId: string) => {
+    if (!confirm("¿Estás seguro de recepcionar TODOS los equipos como OK?"))
       return;
 
     setProcessingId(loanId);
     try {
-      await api.post(`/admin/loans/${loanId}/return/`, {
-        condition_notes: "Todos los equipos devueltos",
-      });
+      // Obtener los equipos pendientes
+      const loan = loans.find((l) => l.id === loanId);
+      if (!loan) return;
+
+      const pendingItems =
+        loan.items?.filter((item) => !item.is_returned) || [];
+
+      for (const item of pendingItems) {
+        await api.post(`/admin/loans/${loanId}/receive/`, {
+          equipment_id: item.equipment_id,
+          return_status: "OK",
+          return_notes: "Todos los equipos recepcionados OK",
+        });
+      }
+
       await fetchLoans();
-      alert("✅ Todos los equipos marcados como devueltos");
+      alert("✅ Todos los equipos recepcionados exitosamente");
     } catch (err: any) {
       console.error("Error:", err);
-      alert("Error al marcar los equipos como devueltos");
+      alert("Error al recepcionar los equipos");
     } finally {
       setProcessingId(null);
     }
@@ -150,30 +172,13 @@ export default function AdminDevolucionesPage() {
     return statusLabels[status] || status;
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   const getPendingItems = (loan: Loan): LoanItem[] => {
-    return loan.items?.filter((item) => !item.is_returned) || [];
+    // Si loan.items no existe o es undefined, retornar array vacío
+    if (!loan.items || !Array.isArray(loan.items)) {
+      console.warn("Loan sin items:", loan.id);
+      return [];
+    }
+    return loan.items.filter((item) => !item.is_returned);
   };
 
   if (loading) {
@@ -202,10 +207,10 @@ export default function AdminDevolucionesPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Devoluciones de Equipos</h1>
+          <h1 className="text-2xl font-bold">Recepción de Equipos</h1>
           <p className="text-gray-600 text-sm">
             {loans.length} préstamo(s) activo(s) con equipos pendientes de
-            devolución
+            recepción
           </p>
         </div>
         <button
@@ -222,7 +227,7 @@ export default function AdminDevolucionesPage() {
             ✅ No hay préstamos activos con equipos pendientes
           </p>
           <p className="text-gray-400 text-sm mt-2">
-            Todos los equipos han sido devueltos
+            Todos los equipos han sido recepcionados
           </p>
         </div>
       ) : (
@@ -230,10 +235,17 @@ export default function AdminDevolucionesPage() {
           {loans.map((loan) => {
             const pendingItems = getPendingItems(loan);
             const hasPendingItems = pendingItems.length > 0;
+            const isFullyReturned =
+              loan.returned_items_count === loan.items_count;
+
             return (
               <div
                 key={loan.id}
-                className="bg-white rounded-lg shadow p-4 hover:shadow-md transition"
+                className={`bg-white rounded-lg shadow p-4 ${
+                  isFullyReturned
+                    ? "border-l-4 border-green-500"
+                    : "border-l-4 border-yellow-500"
+                }`}
               >
                 <div className="flex flex-wrap justify-between items-start gap-4">
                   <div className="flex-1 min-w-[200px]">
@@ -249,10 +261,16 @@ export default function AdminDevolucionesPage() {
                       <span className="text-sm text-gray-600">
                         {loan.user_name} ({loan.user_email})
                       </span>
+                      {isFullyReturned && (
+                        <span className="text-xs text-green-600 font-medium">
+                          ✅ Recepción completa
+                        </span>
+                      )}
                     </div>
                     <div className="text-sm text-gray-600 mt-1">
                       <span>
-                        {loan.returned_items_count}/{loan.items_count} devueltos
+                        {loan.returned_items_count}/{loan.items_count}{" "}
+                        recepcionados
                       </span>
                       <span className="mx-2">•</span>
                       <span>
@@ -281,11 +299,11 @@ export default function AdminDevolucionesPage() {
                     </button>
                     {hasPendingItems && (
                       <button
-                        onClick={() => handleReturnAll(loan.id)}
+                        onClick={() => handleReceiveAll(loan.id)}
                         disabled={processingId === loan.id}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
                       >
-                        {processingId === loan.id ? "..." : "✅ Devolver todos"}
+                        {processingId === loan.id ? "..." : "📥 Recibir todos"}
                       </button>
                     )}
                   </div>
@@ -295,7 +313,7 @@ export default function AdminDevolucionesPage() {
                 {hasPendingItems && (
                   <div className="mt-4 pt-4 border-t">
                     <div className="text-sm font-medium text-gray-700 mb-2">
-                      Equipos pendientes de devolución:
+                      Equipos pendientes de recepción:
                     </div>
                     <div className="space-y-2">
                       {pendingItems.map((item) => (
@@ -305,17 +323,28 @@ export default function AdminDevolucionesPage() {
                         >
                           <span className="text-sm">{item.equipment_name}</span>
                           <div className="flex items-center gap-2">
+                            <select
+                              value={returnStatus}
+                              onChange={(e) => setReturnStatus(e.target.value)}
+                              className="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              disabled={processingId === loan.id}
+                            >
+                              <option value="OK">✅ OK</option>
+                              <option value="DAMAGED">⚠️ Dañado</option>
+                              <option value="MISSING">❌ Faltante</option>
+                              <option value="LATE">⏰ Tarde</option>
+                            </select>
                             <input
                               type="text"
-                              placeholder="Notas de devolución"
-                              className="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-40"
+                              placeholder="Notas"
+                              className="px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-32"
                               value={returnNotes}
                               onChange={(e) => setReturnNotes(e.target.value)}
                               disabled={processingId === loan.id}
                             />
                             <button
                               onClick={() =>
-                                handleReturn(loan.id, item.equipment_id)
+                                handleReceive(loan.id, item.equipment_id)
                               }
                               disabled={processingId === loan.id}
                               className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
@@ -323,7 +352,7 @@ export default function AdminDevolucionesPage() {
                               {processingId === loan.id &&
                               returningEquipmentId === item.equipment_id
                                 ? "..."
-                                : "Devolver"}
+                                : "📥 Recibir"}
                             </button>
                           </div>
                         </div>
@@ -378,7 +407,7 @@ export default function AdminDevolucionesPage() {
                   <div className="text-sm text-gray-500">Equipos</div>
                   <div className="font-medium">
                     {selectedLoan.returned_items_count}/
-                    {selectedLoan.items_count} devueltos
+                    {selectedLoan.items_count} recepcionados
                   </div>
                 </div>
                 <div>
@@ -430,7 +459,7 @@ export default function AdminDevolucionesPage() {
                             <td className="px-4 py-2">
                               {item.is_returned ? (
                                 <span className="text-green-600">
-                                  ✓ Devuelto
+                                  ✓ Recepcionado
                                   {item.condition_notes && (
                                     <span className="text-xs text-gray-500 block">
                                       {item.condition_notes}

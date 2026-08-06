@@ -190,3 +190,57 @@ class BlockedDate(BaseModel):
     
     def __str__(self):
         return f"{self.date} - {self.reason or 'Bloqueado'}"
+
+class ReturnStatus(models.TextChoices):
+    OK = 'OK', 'En buen estado'
+    DAMAGED = 'DAMAGED', 'Dañado'
+    MISSING = 'MISSING', 'Faltante'
+    LATE = 'LATE', 'Devuelto tarde'
+    PENDING = 'PENDING', 'Pendiente de recepción'
+
+class LoanItemModel(BaseModel):
+    """Modelo ORM para items de préstamo (equipos individuales)."""
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    loan = models.ForeignKey(
+        LoanModel,
+        on_delete=models.PROTECT,
+        related_name='items'
+    )
+    equipment = models.ForeignKey(
+        EquipmentModel,
+        on_delete=models.PROTECT,
+        related_name='loan_items'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('RESERVED', 'Reservado'),
+            ('LOANED', 'En préstamo'),
+            ('RETURNED', 'Devuelto'),
+        ],
+        default='RESERVED'
+    )
+    is_returned = models.BooleanField(default=False)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    return_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('OK', 'En buen estado'),
+            ('DAMAGED', 'Dañado'),
+            ('MISSING', 'Faltante'),
+            ('LATE', 'Devuelto tarde'),
+            ('PENDING', 'Pendiente de recepción'),
+        ],
+        default='PENDING',
+        help_text="Estado de la devolución del equipo"
+    )
+    return_notes = models.TextField(null=True, blank=True, help_text="Notas sobre el estado al devolver")
+    condition_notes = models.TextField(null=True, blank=True)  # Mantener por compatibilidad
+
+    class Meta:
+        db_table = 'loan_items'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Item de {self.loan.id[:8]} - {self.equipment.name}"

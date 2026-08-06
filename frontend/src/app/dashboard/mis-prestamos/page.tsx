@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import api from "@/lib/api/client";
+import { formatDate, formatDateTime } from "@/lib/utils/formatDate";
 
 interface LoanItem {
   id: string;
@@ -105,28 +106,6 @@ export default function MisPrestamosPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -188,9 +167,9 @@ export default function MisPrestamosPage() {
           Aprobados
         </button>
         <button
-          onClick={() => setFilter("DISPATCHED")}
+          onClick={() => setFilter("ACTIVE")}
           className={`px-4 py-2 rounded-lg text-sm ${
-            filter === "DISPATCHED"
+            filter === "ACTIVE"
               ? "bg-purple-600 text-white"
               : "bg-gray-200 text-gray-700 hover:bg-gray-300"
           }`}

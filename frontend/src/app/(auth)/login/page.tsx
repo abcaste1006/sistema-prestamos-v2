@@ -25,7 +25,21 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Error al iniciar sesión");
+      // Manejar errores específicos
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+
+      if (status === 403 && detail?.includes("no autorizado")) {
+        setError("Usuario no autorizado. Contacte al administrador.");
+      } else if (status === 403 && detail?.includes("no verificado")) {
+        setError("Usuario no verificado. Se ha enviado un nuevo código.");
+        // Redirigir a verificación después de unos segundos
+        setTimeout(() => {
+          router.push("/verify");
+        }, 2000);
+      } else {
+        setError(detail || "Error al iniciar sesión");
+      }
     } finally {
       setLoading(false);
     }

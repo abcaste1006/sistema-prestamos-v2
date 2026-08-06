@@ -108,7 +108,6 @@ export default function SolicitarPage() {
       return;
     }
 
-    // Verificar disponibilidad nuevamente antes de enviar
     await checkAvailability();
 
     if (!allAvailable) {
@@ -140,11 +139,14 @@ export default function SolicitarPage() {
         }, 3000);
       }
     } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (Array.isArray(detail)) {
-        setError(detail.map((d: any) => d.msg || d).join(", "));
-      } else if (typeof detail === "string") {
-        setError(detail);
+      // Manejar errores detallados
+      const errorData = err.response?.data;
+      if (errorData && typeof errorData === "object") {
+        // Si hay errores por campo, extraer mensajes
+        const messages = Object.values(errorData).flat().join(" ");
+        setError(messages || "Error al crear la solicitud");
+      } else if (errorData?.detail) {
+        setError(errorData.detail);
       } else {
         setError("Error al crear la solicitud");
       }

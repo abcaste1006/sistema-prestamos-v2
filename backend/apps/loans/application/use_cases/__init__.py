@@ -5,6 +5,7 @@ from .approve_loan import ApproveLoanUseCase
 from .reject_loan import RejectLoanUseCase
 from .dispatch_equipment import DispatchEquipmentUseCase
 from .return_equipment import ReturnEquipmentUseCase
+from .receive_equipment import ReceiveEquipmentUseCase  # <-- Agregar
 
 __all__ = [
     'CreateLoanUseCase',
@@ -14,4 +15,5 @@ __all__ = [
     'RejectLoanUseCase',
     'DispatchEquipmentUseCase',
     'ReturnEquipmentUseCase',
+    'ReceiveEquipmentUseCase',  # <-- Agregar
 ]

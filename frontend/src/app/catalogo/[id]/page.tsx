@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api/client";
 import AddToCartButton from "@/app/components/AddToCartButton";
+import { formatDate } from "@/lib/utils/formatDate";
 
 interface Equipment {
   id: string;

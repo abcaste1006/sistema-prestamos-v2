@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import api from "@/lib/api/client";
+import { formatDate } from "@/lib/utils/formatDate";
 
 interface Equipment {
   id: string;
@@ -196,15 +197,6 @@ export default function AdminDisponibilidadPage() {
     if (day.reserved) return "📅 Reservado";
     if (day.available) return "✅ Disponible";
     return "❓ No disponible";
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + "T00:00:00");
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
   };
 
   // Generar días del mes para mostrar

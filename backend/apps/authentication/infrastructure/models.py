@@ -20,6 +20,7 @@ class UserModel(BaseModel):
     @property
     def is_anonymous(self):
         return False
+    
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField(max_length=255, unique=True, db_index=True)
@@ -29,6 +30,7 @@ class UserModel(BaseModel):
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
+    last_list_version = models.IntegerField(default=0, help_text="Versión de lista cuando inició sesión")  # <-- AGREGAR
 
     class Meta:
         db_table = 'auth_users'
@@ -42,11 +44,9 @@ class UserModel(BaseModel):
         return f"{self.first_name} {self.last_name}".strip()
     
     def set_password(self, raw_password: str):
-        """Hashea y guarda la contraseña."""
         self.password_hash = make_password(raw_password)
     
     def check_password(self, raw_password: str) -> bool:
-        """Verifica la contraseña."""
         return check_password(raw_password, self.password_hash)
 
 

@@ -30,11 +30,30 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
     
     def post(self, request):
+        # VALIDACIÓN CONTRA CSV
+        from apps.valid_users.application.use_cases.validate_user import ValidateUserUseCase
+        
+        identification = request.data.get('identification')
+        email = request.data.get('email')
+        
+        if not identification or not email:
+            return Response({
+                'detail': 'Cédula y correo son requeridos'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        validate_use_case = ValidateUserUseCase()
+        is_valid, error_message = validate_use_case.execute(identification, email)
+        
+        if not is_valid:
+            return Response({
+                'detail': error_message
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Continuar con el registro normal
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             
-            # Generar y guardar código de verificación
             code = ''.join(random.choices(string.digits, k=6))
             expires_at = timezone.now() + timezone.timedelta(minutes=15)
             VerificationCodeModel.objects.create(
@@ -42,8 +61,6 @@ class RegisterView(APIView):
                 code=code,
                 expires_at=expires_at,
             )
-            
-            # Aquí se enviaría el correo (etapa 11)
             
             return Response({
                 'message': 'Usuario registrado exitosamente. Revisa tu correo para el código de verificación.',
@@ -118,26 +135,47 @@ class LoginView(APIView):
                 'detail': 'Credenciales inválidas'
             }, status=status.HTTP_401_UNAUTHORIZED)
         
-        if not user.is_active:
-            return Response({
-                'detail': 'Usuario desactivado'
-            }, status=status.HTTP_403_FORBIDDEN)
-        
         if not user.is_verified:
             return Response({
                 'detail': 'Usuario no verificado. Se ha enviado un nuevo código.'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # --- GENERAR JWT REAL CON CLAIMS PERSONALIZADOS ---
-        refresh = RefreshToken.for_user(user)  # ← Esta línea es obligatorias
-
-        # Agregar claims personalizados (esto funciona para TODOS los usuarios)
-        refresh['is_admin'] = user.is_admin  # True o False según el usuario
+        # VALIDACIÓN CONTRA CSV EN LOGIN
+        from apps.valid_users.application.use_cases.validate_user import ValidateUserUseCase
+        
+        validate_use_case = ValidateUserUseCase()
+        is_valid, error_message = validate_use_case.execute(
+            identification=user.identification,
+            email=user.email
+        )
+        
+        if not is_valid:
+            return Response({
+                'detail': 'Usuario no autorizado. Contacte al administrador.'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Si el usuario estaba desactivado, reactivarlo
+        if not user.is_active:
+            user.is_active = True
+            user.save()
+        
+        # Obtener la versión actual de la lista
+        from apps.config.models import SystemConfig
+        config = SystemConfig.objects.filter(key='list_version').first()
+        current_version = int(config.value) if config else 0
+        
+        # Guardar la versión en el usuario
+        user.last_list_version = current_version
+        user.save()
+        
+        # Generar token con la versión
+        refresh = RefreshToken.for_user(user)
+        refresh['is_admin'] = user.is_admin
         refresh['user_id'] = str(user.id)
         refresh['email'] = user.email
+        refresh['list_version'] = current_version  # <-- Guardar en el token
 
         access_token = str(refresh.access_token)
-
         user_data = UserResponseSerializer(user).data
 
         response = Response({
@@ -147,12 +185,10 @@ class LoginView(APIView):
             'user': user_data,
         }, status=status.HTTP_200_OK)
 
-        # Setear refresh token como cookie HttpOnly (más seguro)
         secure = not settings.DEBUG
         refresh_lifetime = settings.SIMPLE_JWT.get('REFRESH_TOKEN_LIFETIME')
         max_age = None
         try:
-            # timedelta -> seconds
             max_age = int(refresh_lifetime.total_seconds())
         except Exception:
             max_age = None

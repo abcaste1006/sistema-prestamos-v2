@@ -110,6 +110,7 @@ class CreateLoanSerializer(serializers.Serializer):
         
         return data
 
+
 class LoanSerializer(serializers.ModelSerializer):
     """Serializer para listar préstamos."""
     
@@ -118,6 +119,10 @@ class LoanSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     items_count = serializers.SerializerMethodField()
     returned_items_count = serializers.SerializerMethodField()
+    
+    # CORREGIDO: Formato de fecha para evitar problemas de zona horaria
+    pickup_date = serializers.DateField(format='%Y-%m-%d')
+    return_date = serializers.DateField(format='%Y-%m-%d')
     
     class Meta:
         model = LoanModel
@@ -150,6 +155,10 @@ class LoanDetailSerializer(serializers.ModelSerializer):
     user_name = serializers.SerializerMethodField()
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     items = LoanItemSerializer(many=True, read_only=True)
+    
+    # CORREGIDO: Formato de fecha para evitar problemas de zona horaria
+    pickup_date = serializers.DateField(format='%Y-%m-%d')
+    return_date = serializers.DateField(format='%Y-%m-%d')
     
     class Meta:
         model = LoanModel
@@ -256,3 +265,20 @@ class ReturnSerializer(serializers.Serializer):
                         f"Equipo con ID '{equipment_id}' no encontrado"
                     )
         return value
+class ReceiveSerializer(serializers.Serializer):
+    """Serializer para recepción de equipos."""
+    
+    equipment_id = serializers.UUIDField()
+    return_status = serializers.ChoiceField(
+        choices=['OK', 'DAMAGED', 'MISSING', 'LATE'],
+        required=True
+    )
+    return_notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
+    def validate_equipment_id(self, value):
+        """Validar que el equipo existe."""
+        try:
+            EquipmentModel.objects.get(id=value)
+            return value
+        except EquipmentModel.DoesNotExist:
+            raise serializers.ValidationError("Equipo no encontrado")

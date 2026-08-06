@@ -53,8 +53,7 @@ class CreateLoanUseCase:
 
         if pickup_date < today:
             raise PickupDateInvalidError("La fecha de retiro no puede ser en el pasado")
-        if return_date <= pickup_date:
-            raise ReturnDateInvalidError("La fecha de devolución debe ser posterior a la fecha de retiro")
+        
 
         # Convertir horas a objetos time
         pickup_time_obj = datetime.strptime(pickup_time, "%H:%M").time()

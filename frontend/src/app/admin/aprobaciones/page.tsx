@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api/client";
+import { formatDate, formatDateTime } from "@/lib/utils/formatDate";
 
 interface LoanItem {
   id: string;
@@ -95,13 +96,24 @@ export default function AdminAprobacionesPage() {
     if (!confirm("¿Estás seguro de aprobar esta solicitud?")) return;
 
     setProcessingId(loanId);
+    setError("");
     try {
-      await api.post(`/admin/loans/${loanId}/approve/`, {});
-      await fetchLoans();
-      alert("✅ Solicitud aprobada exitosamente");
+      const response = await api.post(`/admin/loans/${loanId}/approve/`, {});
+      // Verificar que la respuesta sea exitosa
+      if (response.status === 200) {
+        alert("✅ Solicitud aprobada exitosamente");
+        await fetchLoans();
+      } else {
+        alert(
+          "❌ Error al aprobar: " +
+            (response.data?.detail || "Error desconocido"),
+        );
+      }
     } catch (err: any) {
       console.error("Error:", err);
-      alert("Error al aprobar la solicitud");
+      const detail =
+        err.response?.data?.detail || "Error al aprobar la solicitud";
+      alert("❌ " + detail);
     } finally {
       setProcessingId(null);
     }
@@ -156,28 +168,6 @@ export default function AdminAprobacionesPage() {
 
   const getStatusLabel = (status: string) => {
     return statusLabels[status] || status;
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
-
-  const formatDateTime = (dateStr: string) => {
-    if (!dateStr) return "—";
-    const date = new Date(dateStr);
-    return date.toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   if (loading) {

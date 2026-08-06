@@ -9,10 +9,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.db import transaction
 
 from .models import LoanModel
-from .serializers import LoanSerializer
-
-
-
 from .serializers import (
     LoanSerializer,
     LoanDetailSerializer,
@@ -21,6 +17,7 @@ from .serializers import (
     RejectLoanSerializer,
     DispatchSerializer,
     ReturnSerializer,
+    ReceiveSerializer,
 )
 from .repositories import LoanRepository, LoanItemRepository
 from apps.inventory.infrastructure.repositories import EquipmentRepository
@@ -32,6 +29,7 @@ from apps.loans.application.use_cases import (
     RejectLoanUseCase,
     DispatchEquipmentUseCase,
     ReturnEquipmentUseCase,
+    ReceiveEquipmentUseCase,
 )
 
 
@@ -53,7 +51,6 @@ class CreateLoanView(APIView):
         
         data = serializer.validated_data
         
-        # Obtener datos del usuario autenticado
         user = request.user
         user_id = str(user.id)
         user_name = f"{user.first_name} {user.last_name}".strip()
@@ -104,32 +101,44 @@ class LoanDetailView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request, loan_id):
-        use_case = GetLoanDetailUseCase(loan_repository)
-        
         try:
-            loan = use_case.execute(loan_id, str(request.user.id))
+            # Usar ORM directamente con prefetch para items
+            loan = LoanModel.objects.filter(id=loan_id).prefetch_related(
+                'items',
+                'items__equipment'
+            ).first()
+            
+            if not loan:
+                return Response({
+                    'detail': 'Préstamo no encontrado'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Verificar permisos: admin puede ver todo, usuario solo sus préstamos
+            if not request.user.is_admin and str(loan.user_id) != str(request.user.id):
+                return Response({
+                    'detail': 'No tienes permiso para ver este préstamo'
+                }, status=status.HTTP_403_FORBIDDEN)
+            
             serializer = LoanDetailSerializer(loan)
             return Response(serializer.data, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response({
                 'detail': str(e)
-            }, status=status.HTTP_404_NOT_FOUND)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
-# En ApproveLoanView, actualizar la creación del caso de uso:
 class ApproveLoanView(APIView):
     """Endpoint para aprobar una solicitud de préstamo (admin)."""
     
     permission_classes = [IsAuthenticated]
     
     def post(self, request, loan_id):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Inicializar con ambos repositorios
         use_case = ApproveLoanUseCase(loan_repository, equipment_repository)
         
         try:
@@ -144,13 +153,13 @@ class ApproveLoanView(APIView):
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
 class RejectLoanView(APIView):
     """Endpoint para rechazar una solicitud de préstamo (admin)."""
     
     permission_classes = [IsAuthenticated]
     
     def post(self, request, loan_id):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -160,7 +169,6 @@ class RejectLoanView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        # Inicializar con ambos repositorios
         use_case = RejectLoanUseCase(loan_repository, equipment_repository)
         
         try:
@@ -182,7 +190,6 @@ class DispatchView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request, loan_id):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -213,7 +220,6 @@ class ReturnView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request, loan_id):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -230,9 +236,7 @@ class ReturnView(APIView):
         use_case = ReturnEquipmentUseCase(loan_repository, equipment_repository)
         
         try:
-            # Si no se especifican equipos, devolver todos
             if not equipment_ids:
-                # Obtener el préstamo para conocer sus items
                 loan = loan_repository.get_by_id(loan_id)
                 if not loan:
                     return Response({
@@ -240,11 +244,9 @@ class ReturnView(APIView):
                     }, status=status.HTTP_404_NOT_FOUND)
                 equipment_ids = [item.equipment_id for item in loan.items if not item.is_returned]
             
-            # Devolver cada equipo
             for equipment_id in equipment_ids:
                 use_case.execute(loan_id, equipment_id, condition_notes)
             
-            # Obtener el préstamo actualizado
             loan = loan_repository.get_by_id(loan_id)
             
             return Response({
@@ -258,13 +260,53 @@ class ReturnView(APIView):
             return Response({
                 'detail': str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReceiveView(APIView):
+    """Endpoint para recepción parcial de equipos (admin)."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, loan_id):
+        if not request.user.is_admin:
+            return Response({
+                'detail': 'No tienes permiso para realizar esta acción'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        serializer = ReceiveSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        data = serializer.validated_data
+        use_case = ReceiveEquipmentUseCase(loan_repository, equipment_repository)
+        
+        try:
+            loan = use_case.execute(
+                loan_id=loan_id,
+                equipment_id=str(data['equipment_id']),
+                return_status=data['return_status'],
+                return_notes=data.get('return_notes')
+            )
+            
+            return Response({
+                'message': 'Equipo recepcionado exitosamente',
+                'loan_id': loan.id,
+                'status': loan.status.value,
+                'items_returned': loan.returned_items_count,
+                'total_items': loan.total_items_count,
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'detail': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
 class ListPendingLoansView(APIView):
     """Endpoint para listar préstamos pendientes de aprobación (admin)."""
     
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -281,7 +323,6 @@ class ListApprovedLoansView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -298,14 +339,13 @@ class ListDispatchedLoansView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
             }, status=status.HTTP_403_FORBIDDEN)
         
-        loans = LoanModel.objects.filter(status='DISPATCHED').order_by('-dispatched_at')
-        serializer = LoanSerializer(loans, many=True)
+        loans = LoanModel.objects.filter(status='ACTIVE').order_by('-dispatched_at')
+        serializer = LoanDetailSerializer(loans, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -315,7 +355,6 @@ class ListReturnedLoansView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        # Verificar que el usuario es admin
         if not request.user.is_admin:
             return Response({
                 'detail': 'No tienes permiso para realizar esta acción'
@@ -324,5 +363,3 @@ class ListReturnedLoansView(APIView):
         loans = LoanModel.objects.filter(status='RETURNED').order_by('-returned_at')
         serializer = LoanSerializer(loans, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    

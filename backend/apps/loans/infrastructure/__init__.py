@@ -12,6 +12,7 @@ from .serializers import (
     DispatchItemSerializer,
     ReturnSerializer,
     ReturnItemSerializer,
+    ReceiveSerializer,  # <-- Agregar
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     'DispatchItemSerializer',
     'ReturnSerializer',
     'ReturnItemSerializer',
+    'ReceiveSerializer',  # <-- Agregar
 ]
