@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import api from "@/lib/api/client";
 
 interface Equipment {
@@ -15,16 +14,22 @@ interface Equipment {
   image_url?: string;
 }
 
-export default function AdminEquiposPage() {
-  const router = useRouter();
-  const [equipments, setEquipments] = useState<Equipment[]>([]);
+const statusBadge: Record<string, string> = {
+  AVAILABLE: "badge-green",
+  LOANED: "badge-yellow",
+  MAINTENANCE: "badge-gray",
+  DAMAGED: "badge-red",
+};
 
-  const normalizeEquipments = (payload: any): Equipment[] => {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.results)) return payload.results;
-    if (payload && Array.isArray(payload.data)) return payload.data;
-    return [];
-  };
+const statusLabel: Record<string, string> = {
+  AVAILABLE: "Disponible",
+  LOANED: "En préstamo",
+  MAINTENANCE: "Mantenimiento",
+  DAMAGED: "Dañado",
+};
+
+export default function AdminEquiposPage() {
+  const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -39,11 +44,11 @@ export default function AdminEquiposPage() {
     image_url: "",
   });
 
-  // Cargar equipos
   const fetchEquipments = async () => {
     try {
       const res = await api.get("/equipment/");
-      setEquipments(normalizeEquipments(res.data));
+      const data = res.data.results || res.data || [];
+      setEquipments(data);
     } catch (err) {
       console.error("Error:", err);
       setError("Error al cargar equipos");
@@ -56,7 +61,6 @@ export default function AdminEquiposPage() {
     fetchEquipments();
   }, []);
 
-  // Guardar equipo (crear o editar)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -88,7 +92,6 @@ export default function AdminEquiposPage() {
     }
   };
 
-  // Eliminar equipo
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar este equipo?")) return;
     try {
@@ -100,7 +103,6 @@ export default function AdminEquiposPage() {
     }
   };
 
-  // Editar equipo (cargar datos en el formulario)
   const handleEdit = (eq: Equipment) => {
     setForm({
       name: eq.name,
@@ -115,7 +117,6 @@ export default function AdminEquiposPage() {
     setShowForm(true);
   };
 
-  // Cancelar formulario
   const handleCancel = () => {
     setShowForm(false);
     setEditingId(null);
@@ -130,27 +131,28 @@ export default function AdminEquiposPage() {
     });
   };
 
-  const statusLabels: Record<string, string> = {
-    AVAILABLE: "Disponible",
-    LOANED: "En préstamo",
-    MAINTENANCE: "En mantenimiento",
-    DAMAGED: "Dañado",
-  };
-
-  const statusColors: Record<string, string> = {
-    AVAILABLE: "bg-green-100 text-green-800",
-    LOANED: "bg-yellow-100 text-yellow-800",
-    MAINTENANCE: "bg-blue-100 text-blue-800",
-    DAMAGED: "bg-red-100 text-red-800",
-  };
+  if (loading && !showForm) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-gray-500">Cargando equipos...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestión de Equipos</h1>
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Gestión de Equipos
+          </h2>
+          <p className="text-sm text-gray-500">
+            {equipments.length} equipos registrados
+          </p>
+        </div>
         <button
           onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          className="btn btn-primary"
           disabled={loading}
         >
           + Nuevo Equipo
@@ -158,201 +160,210 @@ export default function AdminEquiposPage() {
       </div>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4">
           {error}
         </div>
       )}
 
       {/* Formulario */}
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow mb-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {editingId ? "Editar Equipo" : "Nuevo Equipo"}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+        <div className="card mb-6">
+          <div className="card-header">
+            <h3>{editingId ? "Editar Equipo" : "Nuevo Equipo"}</h3>
+          </div>
+          <div className="card-body">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label">Nombre *</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="form-control"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Categoría *</label>
+                  <input
+                    type="text"
+                    value={form.category}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value })
+                    }
+                    className="form-control"
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Categoría *
-                </label>
-                <input
-                  type="text"
-                  value={form.category}
+
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <textarea
+                  value={form.description}
                   onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
+                    setForm({ ...form, description: e.target.value })
                   }
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  className="form-control"
+                  rows={3}
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Descripción
-              </label>
-              <textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label">Estado</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) =>
+                      setForm({ ...form, status: e.target.value })
+                    }
+                    className="form-control"
+                  >
+                    <option value="AVAILABLE">Disponible</option>
+                    <option value="LOANED">En préstamo</option>
+                    <option value="MAINTENANCE">Mantenimiento</option>
+                    <option value="DAMAGED">Dañado</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Número de serie</label>
+                  <input
+                    type="text"
+                    value={form.serial_number}
+                    onChange={(e) =>
+                      setForm({ ...form, serial_number: e.target.value })
+                    }
+                    className="form-control"
+                  />
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Estado</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <div className="form-group">
+                <label className="form-label">Especificaciones</label>
+                <textarea
+                  value={form.specifications}
+                  onChange={(e) =>
+                    setForm({ ...form, specifications: e.target.value })
+                  }
+                  className="form-control"
+                  rows={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">URL de imagen</label>
+                <input
+                  type="text"
+                  value={form.image_url}
+                  onChange={(e) =>
+                    setForm({ ...form, image_url: e.target.value })
+                  }
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  className="form-control"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading}
                 >
-                  <option value="AVAILABLE">Disponible</option>
-                  <option value="LOANED">En préstamo</option>
-                  <option value="MAINTENANCE">En mantenimiento</option>
-                  <option value="DAMAGED">Dañado</option>
-                </select>
+                  {loading ? "Guardando..." : "Guardar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="btn btn-outline"
+                >
+                  Cancelar
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Número de serie
-                </label>
-                <input
-                  type="text"
-                  value={form.serial_number}
-                  onChange={(e) =>
-                    setForm({ ...form, serial_number: e.target.value })
-                  }
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Especificaciones
-              </label>
-              <textarea
-                value={form.specifications}
-                onChange={(e) =>
-                  setForm({ ...form, specifications: e.target.value })
-                }
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={2}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                URL de imagen
-              </label>
-              <input
-                type="text"
-                value={form.image_url}
-                onChange={(e) =>
-                  setForm({ ...form, image_url: e.target.value })
-                }
-                placeholder="https://ejemplo.com/imagen.jpg"
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex space-x-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                disabled={loading}
-              >
-                {loading ? "Guardando..." : "Guardar"}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
       {/* Listado de equipos */}
-      {loading && !showForm ? (
-        <p className="text-gray-500">Cargando equipos...</p>
-      ) : equipments.length === 0 ? (
-        <div className="bg-white p-8 rounded-lg shadow text-center">
-          <p className="text-gray-500">No hay equipos registrados.</p>
-          <button
-            onClick={() => setShowForm(true)}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Crear el primer equipo
-          </button>
+      {equipments.length === 0 ? (
+        <div className="card">
+          <div className="card-body text-center py-12">
+            <div className="text-4xl mb-4">🖥️</div>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              No hay equipos registrados
+            </h3>
+            <p className="text-gray-400 text-sm mb-4">
+              Comienza agregando tu primer equipo
+            </p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="btn btn-primary"
+            >
+              Crear el primer equipo
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Nombre
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Categoría
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Estado
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {equipments.map((eq) => (
-                <tr key={eq.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm">{eq.name}</td>
-                  <td className="px-4 py-3 text-sm">{eq.category}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${statusColors[eq.status] || "bg-gray-100"}`}
-                    >
-                      {statusLabels[eq.status] || eq.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm space-x-2">
-                    <button
-                      onClick={() => handleEdit(eq)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(eq.id)}
-                      className="text-red-600 hover:underline"
-                    >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="card">
+          <div className="card-body p-0">
+            <div className="table-wrap">
+              <table className="table-clean">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Categoría</th>
+                    <th>Estado</th>
+                    <th className="text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {equipments.map((eq) => (
+                    <tr key={eq.id}>
+                      <td>
+                        <div className="font-medium text-gray-800">
+                          {eq.name}
+                        </div>
+                        {eq.description && (
+                          <div className="text-xs text-gray-400 truncate max-w-xs">
+                            {eq.description}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="text-sm text-gray-600">
+                          {eq.category}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`badge ${statusBadge[eq.status] || "badge-gray"}`}
+                        >
+                          {statusLabel[eq.status] || eq.status}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(eq)}
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(eq.id)}
+                            className="text-sm text-red-600 hover:underline"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

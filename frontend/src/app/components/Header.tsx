@@ -19,7 +19,7 @@ export default function Header() {
         setUserName(`${user.first_name} ${user.last_name}`);
         setIsAdmin(user.is_admin || false);
       } catch {
-        // Ignorar errores de parseo
+        // Ignorar
       }
     }
   }, []);
@@ -31,7 +31,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -42,13 +42,16 @@ export default function Header() {
           </Link>
 
           {/* Navegación */}
-          <nav className="hidden md:flex space-x-8">
-            <Link href="/" className="text-gray-700 hover:text-blue-600">
+          <nav className="hidden md:flex items-center space-x-6">
+            <Link
+              href="/"
+              className="text-gray-600 hover:text-blue-600 transition"
+            >
               Inicio
             </Link>
             <Link
               href="/catalogo"
-              className="text-gray-700 hover:text-blue-600"
+              className="text-gray-600 hover:text-blue-600 transition"
             >
               Catálogo
             </Link>
@@ -56,14 +59,14 @@ export default function Header() {
               <>
                 <Link
                   href="/dashboard"
-                  className="text-gray-700 hover:text-blue-600"
+                  className="text-gray-600 hover:text-blue-600 transition"
                 >
                   Dashboard
                 </Link>
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="text-gray-700 hover:text-blue-600"
+                    className="text-blue-600 hover:text-blue-700 font-medium transition"
                   >
                     Admin
                   </Link>
@@ -76,10 +79,12 @@ export default function Header() {
           <div className="flex items-center space-x-4">
             {isLoggedIn ? (
               <>
-                <span className="text-sm text-gray-700">{userName}</span>
+                <span className="text-sm text-gray-700 font-medium">
+                  {userName}
+                </span>
                 <button
                   onClick={handleLogout}
-                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
                 >
                   Cerrar Sesión
                 </button>
@@ -87,7 +92,7 @@ export default function Header() {
             ) : (
               <Link
                 href="/login"
-                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               >
                 Iniciar Sesión
               </Link>

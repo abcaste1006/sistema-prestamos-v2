@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import api from "@/lib/api/client";
 import { formatDate, formatDateTime } from "@/lib/utils/formatDate";
 
@@ -38,28 +37,25 @@ interface Loan {
   items?: LoanItem[];
 }
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  APPROVED: "bg-blue-100 text-blue-800 border-blue-300",
-  REJECTED: "bg-red-100 text-red-800 border-red-300",
-  DISPATCHED: "bg-purple-100 text-purple-800 border-purple-300",
-  ACTIVE: "bg-green-100 text-green-800 border-green-300",
-  RETURNED: "bg-gray-100 text-gray-800 border-gray-300",
-  CLOSED: "bg-gray-200 text-gray-600 border-gray-400",
+const statusBadge: Record<string, string> = {
+  PENDING: "badge-yellow",
+  APPROVED: "badge-blue",
+  REJECTED: "badge-red",
+  ACTIVE: "badge-green",
+  RETURNED: "badge-gray",
+  CLOSED: "badge-gray",
 };
 
-const statusLabels: Record<string, string> = {
+const statusLabel: Record<string, string> = {
   PENDING: "Pendiente",
   APPROVED: "Aprobado",
   REJECTED: "Rechazado",
-  DISPATCHED: "Despachado",
   ACTIVE: "Activo",
   RETURNED: "Devuelto",
   CLOSED: "Cerrado",
 };
 
 export default function AdminAprobacionesPage() {
-  const router = useRouter();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -96,24 +92,17 @@ export default function AdminAprobacionesPage() {
     if (!confirm("¿Estás seguro de aprobar esta solicitud?")) return;
 
     setProcessingId(loanId);
-    setError("");
     try {
       const response = await api.post(`/admin/loans/${loanId}/approve/`, {});
-      // Verificar que la respuesta sea exitosa
       if (response.status === 200) {
         alert("✅ Solicitud aprobada exitosamente");
         await fetchLoans();
-      } else {
-        alert(
-          "❌ Error al aprobar: " +
-            (response.data?.detail || "Error desconocido"),
-        );
       }
     } catch (err: any) {
       console.error("Error:", err);
-      const detail =
-        err.response?.data?.detail || "Error al aprobar la solicitud";
-      alert("❌ " + detail);
+      alert(
+        "❌ " + (err.response?.data?.detail || "Error al aprobar la solicitud"),
+      );
     } finally {
       setProcessingId(null);
     }
@@ -143,7 +132,7 @@ export default function AdminAprobacionesPage() {
       alert("✅ Solicitud rechazada");
     } catch (err: any) {
       console.error("Error:", err);
-      alert("Error al rechazar la solicitud");
+      alert("❌ Error al rechazar la solicitud");
     } finally {
       setProcessingId(null);
       setRejectLoanId(null);
@@ -162,14 +151,6 @@ export default function AdminAprobacionesPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    return statusColors[status] || "bg-gray-100 text-gray-800 border-gray-300";
-  };
-
-  const getStatusLabel = (status: string) => {
-    return statusLabels[status] || status;
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -180,12 +161,9 @@ export default function AdminAprobacionesPage() {
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
         {error}
-        <button
-          onClick={fetchLoans}
-          className="ml-4 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-        >
+        <button onClick={fetchLoans} className="ml-4 btn btn-sm btn-danger">
           Reintentar
         </button>
       </div>
@@ -194,92 +172,95 @@ export default function AdminAprobacionesPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Aprobaciones</h1>
-          <p className="text-gray-600 text-sm">
-            {loans.length} solicitud(es) pendiente(s) de aprobación
+          <h2 className="text-xl font-semibold text-gray-800">Aprobaciones</h2>
+          <p className="text-sm text-gray-500">
+            {loans.length} solicitud(es) pendiente(s)
           </p>
         </div>
-        <button
-          onClick={fetchLoans}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          🔄 Actualizar
+        <button onClick={fetchLoans} className="btn btn-outline">
+          Actualizar
         </button>
       </div>
 
       {loans.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500 text-lg">
-            ✅ No hay solicitudes pendientes
-          </p>
-          <p className="text-gray-400 text-sm mt-2">
-            Todas las solicitudes han sido procesadas
-          </p>
+        <div className="card">
+          <div className="card-body text-center py-12">
+            <div className="text-4xl mb-4">✅</div>
+            <h3 className="text-lg font-medium text-gray-700 mb-2">
+              No hay solicitudes pendientes
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Todas las solicitudes han sido procesadas
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
           {loans.map((loan) => (
             <div
               key={loan.id}
-              className="bg-white rounded-lg shadow p-4 hover:shadow-md transition"
+              className="card hover:border-blue-300 transition-all duration-200"
             >
-              <div className="flex flex-wrap justify-between items-start gap-4">
-                <div className="flex-1 min-w-[200px]">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-semibold text-gray-800">
-                      #{loan.id.slice(0, 8)}
-                    </span>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(loan.status)}`}
-                    >
-                      {getStatusLabel(loan.status)}
-                    </span>
-                    <span className="text-sm text-gray-600">
-                      {loan.user_name} ({loan.user_email})
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 mt-1">
-                    <span>{loan.items_count} equipos</span>
-                    <span className="mx-2">•</span>
-                    <span>
-                      Retiro: {formatDate(loan.pickup_date)} {loan.pickup_time}
-                    </span>
-                    <span className="mx-2">•</span>
-                    <span>
-                      Devolución: {formatDate(loan.return_date)}{" "}
-                      {loan.return_time}
-                    </span>
-                  </div>
-                  {loan.notes && (
-                    <div className="text-sm text-gray-500 mt-1 italic">
-                      Notas: {loan.notes}
+              <div className="card-body">
+                <div className="flex flex-wrap justify-between items-start gap-4">
+                  <div className="flex-1 min-w-[200px]">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-mono text-sm font-medium text-gray-700">
+                        #{loan.id.slice(0, 8)}
+                      </span>
+                      <span
+                        className={`badge ${statusBadge[loan.status] || "badge-gray"}`}
+                      >
+                        {statusLabel[loan.status] || loan.status}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {loan.user_name} ({loan.user_email})
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      <span>{loan.items_count} equipos</span>
+                      <span className="mx-2">•</span>
+                      <span>
+                        Retiro: {formatDate(loan.pickup_date)}{" "}
+                        {loan.pickup_time}
+                      </span>
+                      <span className="mx-2">•</span>
+                      <span>
+                        Devolución: {formatDate(loan.return_date)}{" "}
+                        {loan.return_time}
+                      </span>
+                    </div>
+                    {loan.notes && (
+                      <div className="text-sm text-gray-400 mt-1 italic">
+                        Notas: {loan.notes}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleViewDetail(loan.id)}
-                    className="px-3 py-1 text-sm text-blue-600 hover:underline"
-                  >
-                    Ver detalle
-                  </button>
-                  <button
-                    onClick={() => handleApprove(loan.id)}
-                    disabled={processingId === loan.id}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
-                  >
-                    {processingId === loan.id ? "..." : "✅ Aprobar"}
-                  </button>
-                  <button
-                    onClick={() => handleRejectClick(loan.id)}
-                    disabled={processingId === loan.id}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
-                  >
-                    {processingId === loan.id ? "..." : "❌ Rechazar"}
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleViewDetail(loan.id)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Ver detalle
+                    </button>
+                    <button
+                      onClick={() => handleApprove(loan.id)}
+                      disabled={processingId === loan.id}
+                      className="btn btn-sm btn-success"
+                    >
+                      {processingId === loan.id ? "..." : "Aprobar"}
+                    </button>
+                    <button
+                      onClick={() => handleRejectClick(loan.id)}
+                      disabled={processingId === loan.id}
+                      className="btn btn-sm btn-danger"
+                    >
+                      {processingId === loan.id ? "..." : "Rechazar"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -289,54 +270,62 @@ export default function AdminAprobacionesPage() {
 
       {/* Modal de detalle */}
       {showDetail && selectedLoan && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-800">
+                Préstamo #{selectedLoan.id.slice(0, 8)}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowDetail(false);
+                  setSelectedLoan(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
             <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-xl font-bold">
-                    Detalle del Préstamo #{selectedLoan.id.slice(0, 8)}
-                  </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedLoan.status)}`}
-                    >
-                      {getStatusLabel(selectedLoan.status)}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowDetail(false);
-                    setSelectedLoan(null);
-                  }}
-                  className="text-gray-500 hover:text-gray-700 text-xl"
+              <div className="flex items-center gap-2 mb-4">
+                <span
+                  className={`badge ${statusBadge[selectedLoan.status] || "badge-gray"}`}
                 >
-                  ✕
-                </button>
+                  {statusLabel[selectedLoan.status] || selectedLoan.status}
+                </span>
+                <span className="text-sm text-gray-500">
+                  {selectedLoan.user_name}
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <div className="text-sm text-gray-500">Solicitante</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
+                    Solicitante
+                  </div>
                   <div className="font-medium">{selectedLoan.user_name}</div>
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-gray-500">
                     {selectedLoan.user_email}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Equipos</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
+                    Equipos
+                  </div>
                   <div className="font-medium">{selectedLoan.items_count}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Fecha de retiro</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
+                    Fecha de retiro
+                  </div>
                   <div>
                     {formatDate(selectedLoan.pickup_date)}{" "}
                     {selectedLoan.pickup_time}
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
                     Fecha de devolución
                   </div>
                   <div>
@@ -345,27 +334,29 @@ export default function AdminAprobacionesPage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-sm text-gray-500">Solicitado</div>
+                  <div className="text-xs text-gray-400 uppercase tracking-wide">
+                    Solicitado
+                  </div>
                   <div>{formatDateTime(selectedLoan.requested_at)}</div>
                 </div>
               </div>
 
               {selectedLoan.notes && (
-                <div className="mb-4">
-                  <div className="text-sm text-gray-500">Notas</div>
-                  <div className="text-gray-700 bg-gray-50 p-3 rounded-lg">
-                    {selectedLoan.notes}
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+                    Notas
                   </div>
+                  <div className="text-gray-700">{selectedLoan.notes}</div>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
                 <button
                   onClick={() => {
                     setShowDetail(false);
                     setSelectedLoan(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="btn btn-outline"
                 >
                   Cerrar
                 </button>
@@ -377,18 +368,20 @@ export default function AdminAprobacionesPage() {
 
       {/* Modal de rechazo */}
       {showRejectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
             <div className="p-6">
-              <h2 className="text-xl font-bold mb-4">Rechazar Solicitud</h2>
-              <p className="text-gray-600 mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Rechazar Solicitud
+              </h3>
+              <p className="text-gray-500 text-sm mb-4">
                 ¿Por qué estás rechazando esta solicitud?
               </p>
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="Escribe el motivo del rechazo..."
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[100px]"
+                className="form-control w-full min-h-[100px]"
               />
               <div className="flex justify-end gap-2 mt-4">
                 <button
@@ -397,13 +390,13 @@ export default function AdminAprobacionesPage() {
                     setRejectReason("");
                     setRejectLoanId(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  className="btn btn-outline"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleRejectConfirm}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  className="btn btn-danger"
                 >
                   Rechazar
                 </button>

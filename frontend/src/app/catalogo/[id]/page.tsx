@@ -69,12 +69,8 @@ export default function EquipmentDetailPage({
         end_date: selectedDate,
       });
 
-      if (selectedPickupTime) {
-        params.append("pickup_time", selectedPickupTime);
-      }
-      if (selectedReturnTime) {
-        params.append("return_time", selectedReturnTime);
-      }
+      if (selectedPickupTime) params.append("pickup_time", selectedPickupTime);
+      if (selectedReturnTime) params.append("return_time", selectedReturnTime);
 
       const res = await api.get(
         `/equipment/availability/?${params.toString()}`,
@@ -98,129 +94,187 @@ export default function EquipmentDetailPage({
     }
   };
 
-  // Obtener fecha mínima para el selector (hoy)
   const today = new Date().toISOString().split("T")[0];
 
-  if (loading) return <div className="p-8">Cargando...</div>;
-  if (!equipment) return <div className="p-8">Equipo no encontrado</div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="text-gray-500">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!equipment) {
+    return (
+      <div className="card">
+        <div className="card-body text-center py-12">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="text-lg font-medium text-gray-700">
+            Equipo no encontrado
+          </h3>
+          <Link href="/catalogo" className="btn btn-primary mt-4">
+            Volver al catálogo
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto">
       <Link
         href="/catalogo"
-        className="text-blue-600 hover:underline mb-4 inline-block"
+        className="text-sm text-gray-500 hover:text-blue-600 transition mb-4 inline-block"
       >
         ← Volver al catálogo
       </Link>
 
-      <div className="border rounded-lg p-6">
-        <h1 className="text-3xl font-bold mb-2">{equipment.name}</h1>
-        <p className="text-gray-600 mb-4">{equipment.category}</p>
-
-        <div className="space-y-2 mb-6">
-          <p>
-            <strong>Estado:</strong> {equipment.status}
-          </p>
-          {equipment.serial_number && (
-            <p>
-              <strong>Número de serie:</strong> {equipment.serial_number}
-            </p>
-          )}
-          {equipment.specifications && (
-            <p>
-              <strong>Especificaciones:</strong> {equipment.specifications}
-            </p>
-          )}
-        </div>
-
-        <p className="text-gray-700 mb-6">{equipment.description}</p>
-
-        {/* Verificador de disponibilidad */}
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h3 className="font-semibold mb-3">Verificar Disponibilidad</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="card">
+        <div className="card-body">
+          <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Fecha</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                min={today}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <h1 className="text-2xl font-bold text-gray-800">
+                {equipment.name}
+              </h1>
+              <p className="text-gray-500">{equipment.category}</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Hora de retiro
-              </label>
-              <input
-                type="time"
-                value={selectedPickupTime}
-                onChange={(e) => setSelectedPickupTime(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Hora de devolución
-              </label>
-              <input
-                type="time"
-                value={selectedReturnTime}
-                onChange={(e) => setSelectedReturnTime(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <button
-            onClick={checkAvailability}
-            disabled={checkingAvailability || !selectedDate}
-            className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {checkingAvailability
-              ? "Verificando..."
-              : "Verificar Disponibilidad"}
-          </button>
-
-          {/* Resultado de disponibilidad */}
-          {availability && (
-            <div
-              className={`mt-3 p-3 rounded-lg ${availability.available ? "bg-green-100" : "bg-red-100"}`}
+            <span
+              className={`badge ${
+                equipment.status === "AVAILABLE"
+                  ? "badge-green"
+                  : equipment.status === "LOANED"
+                    ? "badge-yellow"
+                    : equipment.status === "MAINTENANCE"
+                      ? "badge-gray"
+                      : "badge-red"
+              }`}
             >
-              <p
-                className={`font-medium ${availability.available ? "text-green-800" : "text-red-800"}`}
-              >
-                {availability.available ? "✅ Disponible" : "❌ No disponible"}
+              {equipment.status === "AVAILABLE"
+                ? "Disponible"
+                : equipment.status === "LOANED"
+                  ? "En préstamo"
+                  : equipment.status === "MAINTENANCE"
+                    ? "Mantenimiento"
+                    : "Dañado"}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                Descripción
+              </h3>
+              <p className="text-gray-700">
+                {equipment.description || "Sin descripción"}
               </p>
-              {availability.reason && (
-                <p className="text-sm mt-1">{availability.reason}</p>
+            </div>
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 mb-2">
+                Especificaciones
+              </h3>
+              {equipment.specifications ? (
+                <p className="text-gray-700 whitespace-pre-line">
+                  {equipment.specifications}
+                </p>
+              ) : (
+                <p className="text-gray-400">Sin especificaciones</p>
               )}
-              {availability.available && availability.start_date && (
-                <p className="text-sm text-green-700 mt-1">
-                  Disponible desde {availability.start_date} hasta{" "}
-                  {availability.end_date || availability.start_date}
-                  {availability.pickup_time &&
-                    ` a las ${availability.pickup_time}`}
-                  {availability.return_time &&
-                    ` hasta ${availability.return_time}`}
+              {equipment.serial_number && (
+                <p className="text-sm text-gray-500 mt-2">
+                  <span className="font-medium">N° Serie:</span>{" "}
+                  {equipment.serial_number}
                 </p>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="flex gap-4">
-          <AddToCartButton
-            equipmentId={equipment.id}
-            name={equipment.name}
-            category={equipment.category}
-          />
-          <Link
-            href="/catalogo"
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            Ver otros equipos
-          </Link>
+          {/* Verificador de disponibilidad */}
+          <div className="bg-gray-50 rounded-xl p-5 mb-6">
+            <h3 className="font-medium text-gray-700 mb-3">
+              Verificar Disponibilidad
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="form-group">
+                <label className="form-label">Fecha</label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  min={today}
+                  className="form-control"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Hora de retiro</label>
+                <input
+                  type="time"
+                  value={selectedPickupTime}
+                  onChange={(e) => setSelectedPickupTime(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Hora de devolución</label>
+                <input
+                  type="time"
+                  value={selectedReturnTime}
+                  onChange={(e) => setSelectedReturnTime(e.target.value)}
+                  className="form-control"
+                />
+              </div>
+            </div>
+            <button
+              onClick={checkAvailability}
+              disabled={checkingAvailability || !selectedDate}
+              className="btn btn-primary mt-2"
+            >
+              {checkingAvailability
+                ? "Verificando..."
+                : "Verificar Disponibilidad"}
+            </button>
+
+            {availability && (
+              <div
+                className={`mt-4 p-4 rounded-xl ${
+                  availability.available
+                    ? "bg-green-50 border border-green-200"
+                    : "bg-red-50 border border-red-200"
+                }`}
+              >
+                <p
+                  className={`font-medium ${availability.available ? "text-green-700" : "text-red-700"}`}
+                >
+                  {availability.available ? "✓ Disponible" : "✗ No disponible"}
+                </p>
+                {availability.reason && (
+                  <p className="text-sm mt-1">{availability.reason}</p>
+                )}
+                {availability.available && availability.start_date && (
+                  <p className="text-sm text-green-600 mt-1">
+                    Disponible desde {availability.start_date}
+                    {availability.end_date &&
+                      availability.end_date !== availability.start_date &&
+                      ` hasta ${availability.end_date}`}
+                    {availability.pickup_time &&
+                      ` a las ${availability.pickup_time}`}
+                    {availability.return_time &&
+                      ` hasta ${availability.return_time}`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <AddToCartButton
+              equipmentId={equipment.id}
+              name={equipment.name}
+              category={equipment.category}
+            />
+            <Link href="/catalogo" className="btn btn-outline">
+              Ver otros equipos
+            </Link>
+          </div>
         </div>
       </div>
     </div>

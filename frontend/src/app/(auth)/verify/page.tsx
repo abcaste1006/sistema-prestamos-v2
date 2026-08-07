@@ -79,72 +79,85 @@ export default function VerifyPage() {
 
   if (success) {
     return (
-      <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-        <div className="text-5xl text-green-500 mb-4">✓</div>
-        <h2 className="text-2xl font-bold mb-2">¡Cuenta verificada!</h2>
-        <p className="text-gray-600 mb-4">
-          Serás redirigido al login en 3 segundos.
-        </p>
-        <Link href="/login" className="text-blue-600 hover:underline">
-          Ir al login ahora
-        </Link>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 w-full max-w-md text-center">
+          <div className="text-5xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            ¡Cuenta verificada!
+          </h2>
+          <p className="text-gray-500 mb-4">
+            Serás redirigido al login en 3 segundos.
+          </p>
+          <Link
+            href="/login"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Ir al login ahora
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-8 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-bold text-center mb-4">
-        Verificación de Cuenta
-      </h2>
-      <p className="text-gray-600 text-center mb-6">
-        Ingresa el código de 6 dígitos que enviamos a tu correo.
-      </p>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-sm">
-          {error}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8">
+      <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Verificación de Cuenta
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Ingresa el código de 6 dígitos que enviamos a tu correo.
+          </p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={code}
-          onChange={(e) =>
-            setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          placeholder="123456"
-          className="w-full px-3 py-2 border rounded-lg text-center text-2xl tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-          maxLength={6}
-          required
-          autoFocus
-        />
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm">
+            {error}
+          </div>
+        )}
 
-        <button
-          type="submit"
-          disabled={loading || code.length !== 6}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Verificando..." : "Verificar Cuenta"}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <input
+              type="text"
+              value={code}
+              onChange={(e) =>
+                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="123456"
+              className="form-control text-center text-2xl tracking-widest"
+              maxLength={6}
+              required
+              autoFocus
+            />
+          </div>
 
-      <div className="mt-4 text-center">
-        <button
-          onClick={handleResend}
-          disabled={resendLoading}
-          className="text-blue-600 hover:underline text-sm disabled:opacity-50"
-        >
-          {resendLoading ? "Enviando..." : "Reenviar código"}
-        </button>
+          <button
+            type="submit"
+            disabled={loading || code.length !== 6}
+            className="btn btn-primary w-full justify-center"
+          >
+            {loading ? "Verificando..." : "Verificar Cuenta"}
+          </button>
+        </form>
+
+        <div className="mt-4 text-center">
+          <button
+            onClick={handleResend}
+            disabled={resendLoading}
+            className="text-sm text-blue-600 hover:underline disabled:opacity-50"
+          >
+            {resendLoading ? "Enviando..." : "Reenviar código"}
+          </button>
+        </div>
+
+        <p className="text-center text-gray-500 mt-4 text-sm">
+          <Link href="/login" className="text-blue-600 hover:underline">
+            Volver al login
+          </Link>
+        </p>
       </div>
-
-      <p className="text-center text-gray-600 mt-4 text-sm">
-        <Link href="/login" className="text-blue-600 hover:underline">
-          Volver al login
-        </Link>
-      </p>
     </div>
   );
 }

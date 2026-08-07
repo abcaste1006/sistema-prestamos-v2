@@ -22,6 +22,7 @@ from .serializers import (
 from django.conf import settings
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.core.mail import send_mail
 
 
 class RegisterView(APIView):
@@ -49,18 +50,40 @@ class RegisterView(APIView):
                 'detail': error_message
             }, status=status.HTTP_403_FORBIDDEN)
         
-        # Continuar con el registro normal
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             
             code = ''.join(random.choices(string.digits, k=6))
             expires_at = timezone.now() + timezone.timedelta(minutes=15)
-            VerificationCodeModel.objects.create(
+            verification = VerificationCodeModel.objects.create(
                 user=user,
                 code=code,
                 expires_at=expires_at,
             )
+            
+            # ENVIAR CORREO DE VERIFICACIÓN
+            try:
+                send_mail(
+                    subject='Código de verificación - Sistema de Préstamos',
+                    message=f'''
+Hola {user.first_name},
+
+Tu código de verificación es: {code}
+
+Este código expirará en 15 minutos.
+
+Si no solicitaste este registro, ignora este mensaje.
+
+Saludos,
+Sistema de Préstamos de Equipos
+                    ''',
+                    from_email=settings.DEFAULT_FROM_EMAIL or 'noreply@prestamos.com',
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                print(f"Error al enviar correo: {e}")
             
             return Response({
                 'message': 'Usuario registrado exitosamente. Revisa tu correo para el código de verificación.',
@@ -230,19 +253,39 @@ class ResendCodeView(APIView):
                 'detail': 'El usuario ya está verificado'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Generar nuevo código
         code = ''.join(random.choices(string.digits, k=6))
         expires_at = timezone.now() + timezone.timedelta(minutes=15)
         
-        # Eliminar códigos anteriores no usados
         VerificationCodeModel.objects.filter(user=user, is_used=False).delete()
         
-        # Crear nuevo código
-        VerificationCodeModel.objects.create(
+        verification = VerificationCodeModel.objects.create(
             user=user,
             code=code,
             expires_at=expires_at,
         )
+        
+        # ENVIAR CORREO CON NUEVO CÓDIGO
+        try:
+            send_mail(
+                subject='Nuevo código de verificación - Sistema de Préstamos',
+                message=f'''
+Hola {user.first_name},
+
+Tu nuevo código de verificación es: {code}
+
+Este código expirará en 15 minutos.
+
+Si no solicitaste este reenvío, ignora este mensaje.
+
+Saludos,
+Sistema de Préstamos de Equipos
+                ''',
+                from_email=settings.DEFAULT_FROM_EMAIL or 'noreply@prestamos.com',
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except Exception as e:
+            print(f"Error al enviar correo: {e}")
         
         return Response({
             'message': 'Código reenviado exitosamente'
