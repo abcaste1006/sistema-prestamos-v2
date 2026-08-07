@@ -1,0 +1,36 @@
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--gray-200);
+}
+
+.table-clean {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table-clean thead {
+  background: var(--gray-50);
+}
+
+.table-clean th {
+  padding: 10px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--gray-500);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.table-clean td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700);
+}
+
+.table-clean tbody tr:hover {
+  background: var(--gray-50);
+}

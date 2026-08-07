@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import api from "@/lib/api/client";
+import AddToCartButton from "@/app/components/AddToCartButton";
 
 interface Equipment {
   id: string;
@@ -39,7 +40,6 @@ export default function CatalogoPage() {
       const data = res.data.results || res.data || [];
       setEquipments(data);
 
-      // Extraer categorías únicas
       const uniqueCategories = Array.from(
         new Set(data.map((eq: Equipment) => eq.category)),
       );
@@ -111,6 +111,7 @@ export default function CatalogoPage() {
     setCheckingAvailability(false);
   };
 
+  // FILTRADO DE EQUIPOS - MOVER AQUÍ
   const filtered = equipments.filter((eq) => {
     const matchSearch =
       eq.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -213,7 +214,6 @@ export default function CatalogoPage() {
             </div>
           </div>
 
-          {/* Horas opcionales */}
           {selectedDate && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
               <div className="form-group">
@@ -255,54 +255,65 @@ export default function CatalogoPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 md:gap-6">
           {filtered.map((eq) => (
-            <Link
+            <div
               key={eq.id}
-              href={`/catalogo/${eq.id}`}
               className="card hover:border-blue-300 transition-all duration-200"
             >
-              <div className="card-body">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-semibold text-gray-800 line-clamp-1">
-                    {eq.name}
-                  </h3>
-                  <span className={`badge ${getStatusBadge(eq.status)}`}>
-                    {getStatusLabel(eq.status)}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mb-1">{eq.category}</p>
-                <p className="text-sm text-gray-600 line-clamp-2 mt-2">
-                  {eq.description || "Sin descripción"}
-                </p>
+              <Link href={`/catalogo/${eq.id}`} className="block">
+                <div className="card-body">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-1">
+                      {eq.name}
+                    </h3>
+                    <span className={`badge ${getStatusBadge(eq.status)}`}>
+                      {getStatusLabel(eq.status)}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-1">{eq.category}</p>
+                  <p className="text-sm text-gray-600 line-clamp-2 mt-2">
+                    {eq.description || "Sin descripción"}
+                  </p>
 
-                {/* Disponibilidad verificada */}
-                {eq.availability !== undefined && selectedDate && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    {eq.availability.available ? (
-                      <div className="flex items-center gap-2 text-sm text-green-600">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                        Disponible para {selectedDate}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-sm text-red-600">
-                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                        No disponible: {eq.availability.reason || "Reservado"}
-                      </div>
+                  {/* Disponibilidad verificada */}
+                  {eq.availability !== undefined && selectedDate && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      {eq.availability.available ? (
+                        <div className="flex items-center gap-2 text-sm text-green-600">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          Disponible para {selectedDate}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm text-red-600">
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          No disponible: {eq.availability.reason || "Reservado"}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                    <span className="text-xs text-gray-400">
+                      Ver detalles →
+                    </span>
+                    {eq.status === "AVAILABLE" && (
+                      <span className="text-xs text-green-600 font-medium">
+                        Disponible
+                      </span>
                     )}
                   </div>
-                )}
-
-                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-xs text-gray-400">Ver detalles →</span>
-                  {eq.status === "AVAILABLE" && (
-                    <span className="text-xs text-green-600 font-medium">
-                      Disponible
-                    </span>
-                  )}
                 </div>
+              </Link>
+              {/* Botón de agregar al pedido - fuera del Link para evitar navegación */}
+              <div className="px-4 pb-4">
+                <AddToCartButton
+                  equipmentId={eq.id}
+                  name={eq.name}
+                  category={eq.category}
+                />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

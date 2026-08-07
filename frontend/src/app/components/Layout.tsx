@@ -28,6 +28,11 @@ export default function Layout({ children }: LayoutProps) {
     }
   }, []);
 
+  // Cerrar sidebar al cambiar de ruta (móvil)
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
+
   const handleLogout = () => {
     document.cookie = "auth_token=; path=/; max-age=0";
     localStorage.removeItem("user");
@@ -67,12 +72,26 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="app-container">
+      {/* Overlay para móvil */}
+      {isOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsOpen(false)} />
+      )}
+
       {/* Sidebar */}
       <aside className={`sidebar ${isOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <h1>Sistema de Prestamos</h1>
           <span>Gestion de equipos tecnologicos</span>
         </div>
+
+        {/* Botón de cierre para móvil */}
+        <button
+          className="sidebar-close"
+          onClick={() => setIsOpen(false)}
+          aria-label="Cerrar menu"
+        >
+          ✕
+        </button>
 
         <nav className="sidebar-nav">
           <div className="nav-label">Navegacion</div>
@@ -160,6 +179,13 @@ export default function Layout({ children }: LayoutProps) {
                 <span className="nav-icon">👤</span>
                 Usuarios
               </Link>
+              <Link
+                href="/admin/historial"
+                className={`nav-item ${isActive("/admin/historial") ? "active" : ""}`}
+              >
+                <span className="nav-icon">📜</span>
+                Historial
+              </Link>
             </>
           )}
         </nav>
@@ -185,10 +211,14 @@ export default function Layout({ children }: LayoutProps) {
       <main className="main-content">
         <header className="top-header">
           <div className="header-left">
-            <button className="menu-toggle" onClick={() => setIsOpen(!isOpen)}>
+            <button
+              className="menu-toggle"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label="Toggle menu"
+            >
               ☰
             </button>
-            <span className="text-lg font-semibold text-gray-700">
+            <span className="header-title">
               {pathname === "/dashboard" && "Panel de Control"}
               {pathname === "/catalogo" && "Catalogo de Equipos"}
               {pathname === "/dashboard/solicitar" && "Solicitar Prestamo"}

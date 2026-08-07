@@ -363,3 +363,131 @@ class ListReturnedLoansView(APIView):
         loans = LoanModel.objects.filter(status='RETURNED').order_by('-returned_at')
         serializer = LoanSerializer(loans, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ListHistoryLoansView(APIView):
+    """Endpoint para listar todos los préstamos con filtros (admin)."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        if not request.user.is_admin:
+            return Response({
+                'detail': 'No tienes permiso para realizar esta acción'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Obtener parámetros de filtro
+        user_id = request.query_params.get('user_id')
+        status_filter = request.query_params.get('status')
+        equipment_id = request.query_params.get('equipment_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        search = request.query_params.get('search')
+        
+        # Query base
+        queryset = LoanModel.objects.all().select_related('user').prefetch_related(
+            'items',
+            'items__equipment'
+        )
+        
+        # Aplicar filtros
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        if equipment_id:
+            queryset = queryset.filter(items__equipment_id=equipment_id).distinct()
+        
+        if start_date:
+            queryset = queryset.filter(requested_at__gte=start_date)
+        
+        if end_date:
+            queryset = queryset.filter(requested_at__lte=end_date)
+        
+        if search:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(id__icontains=search)
+            )
+        
+        # Ordenar por más reciente
+        queryset = queryset.order_by('-created_at')
+        
+        # Paginación (opcional)
+        page_size = int(request.query_params.get('page_size', 50))
+        page = int(request.query_params.get('page', 1))
+        start = (page - 1) * page_size
+        end = start + page_size
+        
+        total = queryset.count()
+        loans = queryset[start:end]
+        
+        serializer = LoanDetailSerializer(loans, many=True)
+        
+        return Response({
+            'results': serializer.data,
+            'total': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size
+        }, status=status.HTTP_200_OK)
+
+
+class UserLoansView(APIView):
+    """Endpoint para listar préstamos de un usuario específico (admin)."""
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
+        if not request.user.is_admin:
+            return Response({
+                'detail': 'No tienes permiso para realizar esta acción'
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        from apps.authentication.infrastructure.models import UserModel
+        
+        try:
+            user = UserModel.objects.get(id=user_id)
+        except UserModel.DoesNotExist:
+            return Response({
+                'detail': 'Usuario no encontrado'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Obtener filtros de fecha
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        status_filter = request.query_params.get('status')
+        
+        queryset = LoanModel.objects.filter(user_id=user_id).prefetch_related(
+            'items',
+            'items__equipment'
+        )
+        
+        if start_date:
+            queryset = queryset.filter(requested_at__gte=start_date)
+        
+        if end_date:
+            queryset = queryset.filter(requested_at__lte=end_date)
+        
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        
+        queryset = queryset.order_by('-created_at')
+        
+        serializer = LoanDetailSerializer(queryset, many=True)
+        
+        return Response({
+            'user': {
+                'id': str(user.id),
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email,
+                'identification': user.identification
+            },
+            'loans': serializer.data,
+            'total': queryset.count()
+        }, status=status.HTTP_200_OK)

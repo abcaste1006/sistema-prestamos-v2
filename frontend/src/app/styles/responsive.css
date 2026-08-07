@@ -1,0 +1,145 @@
+/* ========== SIDEBAR ========== */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-close {
+    display: block;
+  }
+  .sidebar-overlay {
+    display: block;
+  }
+  .main-content {
+    margin-left: 0;
+  }
+  .top-header {
+    padding: 0 16px;
+    height: 56px;
+  }
+  .top-header .header-left .menu-toggle {
+    display: block;
+  }
+  .top-header .header-nav {
+    display: none;
+  }
+  .page-content {
+    padding: 16px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+/* ========== TABLES ========== */
+@media (max-width: 768px) {
+  .table-wrap {
+    border-radius: 8px;
+  }
+  .table-clean th,
+  .table-clean td {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ========== STATS ========== */
+@media (max-width: 480px) {
+  .stat-card {
+    padding: 12px 14px;
+  }
+  .stat-card .stat-value {
+    font-size: 20px;
+  }
+  .stat-card .stat-label {
+    font-size: 11px;
+  }
+  .stat-card .stat-icon {
+    font-size: 18px;
+  }
+}
+
+/* ========== FORMS & BUTTONS ========== */
+@media (max-width: 640px) {
+  .form-group {
+    margin-bottom: 12px;
+  }
+  .form-control {
+    font-size: 16px;
+    padding: 10px 12px;
+  }
+  .btn {
+    padding: 10px 16px;
+    font-size: 14px;
+    width: 100%;
+    justify-content: center;
+  }
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    width: auto;
+  }
+  .flex-wrap.gap-2 {
+    gap: 6px;
+  }
+  .flex-wrap.gap-2 button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ========== CARDS ========== */
+@media (max-width: 640px) {
+  .card-header {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-header h3 {
+    font-size: 14px;
+  }
+  .card-body {
+    padding: 14px 16px;
+  }
+  .section-header h2 {
+    font-size: 16px;
+  }
+}
+
+/* ========== GRID ========== */
+@media (max-width: 640px) {
+  .grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  .grid-cols-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== MODALS ========== */
+@media (max-width: 640px) {
+  .fixed.inset-0 {
+    padding: 8px;
+  }
+  .fixed.inset-0 > div {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 12px;
+    max-height: 95vh;
+  }
+  .fixed.inset-0 .sticky.top-0 {
+    padding: 12px 16px;
+  }
+  .fixed.inset-0 .sticky.top-0 h3 {
+    font-size: 16px;
+  }
+}
